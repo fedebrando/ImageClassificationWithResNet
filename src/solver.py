@@ -1,3 +1,4 @@
+
 import torch
 import torch.optim as optim
 import torch.nn as nn
@@ -25,9 +26,9 @@ class Solver(object):
         self.criterion = nn.CrossEntropyLoss()
         
         # Choose optimizer
-        if self.args.opt == "SGD":
+        if self.args.opt == 'SGD':
             self.optimizer = optim.SGD(self.net.parameters(), lr=self.args.lr, momentum=0.9)
-        elif self.args.opt == "Adam":
+        elif self.args.opt == 'Adam':
             self.optimizer = optim.Adam(self.net.parameters(), lr=self.args.lr)
 
         self.epochs = self.args.epochs
@@ -42,13 +43,13 @@ class Solver(object):
         # if you want to save the model
         check_path = os.path.join(self.args.checkpoint_path, self.model_name)
         torch.save(self.net.state_dict(), check_path)
-        print("Model saved!")
+        print('Model saved!')
 
     def load_model(self):
         # function to load the model
         check_path = os.path.join(self.args.checkpoint_path, self.model_name)
         self.net.load_state_dict(torch.load(check_path))
-        print("Model loaded!")
+        print('Model loaded!')
     
     def train(self):
         self.net.train()
@@ -73,13 +74,14 @@ class Solver(object):
 
                 # print statistics
                 running_loss += loss.item()
-                if i % self.args.print_every == self.args.print_every - 1:  
-                    
+                if i % self.args.print_every == self.args.print_every - 1: 
                     print(f'[{epoch + 1}, {i + 1:5d}] loss: {running_loss / self.args.print_every:.3f}')
 
-                    self.writer.add_scalar('training loss',
+                    self.writer.add_scalar(
+                        'training loss',
                         running_loss / self.args.print_every,
-                        epoch * len(self.train_loader) + i)
+                        epoch * len(self.train_loader) + i
+                    )
                     
                     running_loss = 0.0
 
@@ -113,9 +115,11 @@ class Solver(object):
                 total += labels.size(0)
                 correct += (predicted == labels).sum().item()
 
-        self.writer.add_scalar('test accuracy',
+        self.writer.add_scalar(
+            'test accuracy',
             100 * correct / total,
-            epoch * len(self.train_loader) + i)
+            epoch * len(self.train_loader) + i
+        )
 
         print(f'Accuracy of the network on the 10000 test images: {100 * correct / total} %')
         self.net.train()
