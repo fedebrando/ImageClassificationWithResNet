@@ -53,6 +53,14 @@ class Solver(object):
         print('Model loaded!')
     
     def train(self):
+        self.writer.add_text(
+            'Hyperparameters and Settings',
+            f'Epochs: {self.args.epochs}\n' +
+            f'Batch Size: {self.args.batch_size}\n' +
+            f'Learning Rate: {self.args.lr}\n' +
+            f'Optimizer: {self.args.opt}'
+        )
+
         self.net.train()
         for epoch in range(self.epochs):  # loop over the dataset multiple times
 
