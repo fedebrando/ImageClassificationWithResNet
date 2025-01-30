@@ -3,6 +3,7 @@ import torch
 import torch.optim as optim
 import torch.nn as nn
 import os
+from typing import Literal
 
 from model import Net
 
@@ -78,15 +79,16 @@ class Solver(object):
                     print(f'[{epoch + 1}, {i + 1:5d}] loss: {running_loss / self.args.print_every:.3f}')
 
                     self.writer.add_scalar(
-                        'training loss',
+                        'Training Loss',
                         running_loss / self.args.print_every,
                         epoch * len(self.train_loader) + i
                     )
                     
                     running_loss = 0.0
 
-                    # Test model
-                    self.test(epoch, i)
+                    # Accuracy on training and validation set
+                    self.evaluation(epoch, i, subset='train')
+                    self.evaluation(epoch, i, subset='val')
 
             self.save_model()
         
@@ -94,8 +96,8 @@ class Solver(object):
         self.writer.close()
         print('Finished Training')   
     
-    def test(self, epoch, i):
-        # now lets evaluate the model on the test set
+    def evaluation(self, epoch, i, subset: Literal['train', 'val']='val'):
+        # now lets evaluate the model (on training set or validation one)
         correct = 0
         total = 0
 
@@ -104,7 +106,7 @@ class Solver(object):
 
         # since we're not training, we don't need to calculate the gradients for our outputs
         with torch.no_grad():
-            for data in self.val_loader:
+            for data in (self.val_loader if subset == 'val' else self.train_loader):
                 inputs, labels = data
                 # put data on correct device
                 inputs, labels = inputs.to(self.device), labels.to(self.device)
@@ -116,10 +118,10 @@ class Solver(object):
                 correct += (predicted == labels).sum().item()
 
         self.writer.add_scalar(
-            'test accuracy',
+            ('Validation' if subset == 'val' else 'Training') + 'Accuracy',
             100 * correct / total,
             epoch * len(self.train_loader) + i
         )
 
-        print(f'Accuracy of the network on the {len(self.val_loader.dataset)} test images: {100 * correct / total} %')
+        print(f'Accuracy of the network on the {len(self.val_loader.dataset)} {'validation' if subset == 'val' else 'training'} images: {100 * correct / total} %')
         self.net.train()

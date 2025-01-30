@@ -9,12 +9,12 @@ from solver import Solver
 from dataset import TinyImageNet
 
 def get_args():
-    parser = argparse.ArgumentParser()   
+    parser = argparse.ArgumentParser()
 
     parser.add_argument('--run_name', type=str, default='run_1', help='name of current run')
     parser.add_argument('--model_name', type=str, default='first_train', help='name of the model to be saved/loaded')
 
-    parser.add_argument('--epochs', type=int, default=2, help='number of epochs')
+    parser.add_argument('--epochs', type=int, default=10, help='number of epochs')
     parser.add_argument('--batch_size', type=int, default=16, help='number of elements in batch size')
     parser.add_argument('--workers', type=int, default=2, help='number of workers in data loader')
     parser.add_argument('--print_every', type=int, default=500, help='print losses every N iteration')
