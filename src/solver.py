@@ -9,17 +9,17 @@ from model import Net
 class Solver(object):
     """Solver for training and testing."""
 
-    def __init__(self, train_loader, test_loader, device, writer, args):
+    def __init__(self, train_loader, val_loader, device, writer, args):
         """Initialize configurations."""
 
         self.args = args
-        self.model_name = 'cifar_net_{}.pth'.format(self.args.model_name)
+        self.model_name = 'model_{}.pth'.format(self.args.model_name)
 
         # Define the model
-        self.net = Net(self.args).to(device)
+        self.net = Net(self.args, train_loader.dataset.num_classes()).to(device)
 
-        # load a pretrained model
-        if self.args.resume_train == True:
+        # Load a pretrained model
+        if self.args.resume_train:
             self.load_model()
         
         # Define Loss function
@@ -33,20 +33,20 @@ class Solver(object):
 
         self.epochs = self.args.epochs
         self.train_loader = train_loader
-        self.test_loader = test_loader
+        self.val_loader = val_loader
 
         self.device = device
 
         self.writer = writer
 
     def save_model(self):
-        # if you want to save the model
+        # If you want to save the model
         check_path = os.path.join(self.args.checkpoint_path, self.model_name)
         torch.save(self.net.state_dict(), check_path)
         print('Model saved!')
 
     def load_model(self):
-        # function to load the model
+        # Function to load the model
         check_path = os.path.join(self.args.checkpoint_path, self.model_name)
         self.net.load_state_dict(torch.load(check_path))
         print('Model loaded!')
@@ -104,7 +104,7 @@ class Solver(object):
 
         # since we're not training, we don't need to calculate the gradients for our outputs
         with torch.no_grad():
-            for data in self.test_loader:
+            for data in self.val_loader:
                 inputs, labels = data
                 # put data on correct device
                 inputs, labels = inputs.to(self.device), labels.to(self.device)
@@ -121,5 +121,5 @@ class Solver(object):
             epoch * len(self.train_loader) + i
         )
 
-        print(f'Accuracy of the network on the 10000 test images: {100 * correct / total} %')
+        print(f'Accuracy of the network on the {len(self.val_loader.dataset)} test images: {100 * correct / total} %')
         self.net.train()

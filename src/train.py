@@ -1,11 +1,12 @@
 
 import torch
-import torchvision
 import torchvision.transforms as transforms
 import argparse
 from torch.utils.tensorboard import SummaryWriter
+import os
 
 from solver import Solver
+from dataset import TinyImageNet
 
 def get_args():
     parser = argparse.ArgumentParser()   
@@ -23,7 +24,7 @@ def get_args():
     parser.add_argument('--use_norm', action='store_true', help='use normalization layers in model')
     parser.add_argument('--feat', type=int, default=16, help='number of features in model')
 
-    parser.add_argument('--dataset_path', type=str, default='./data', help='path were to save/get the dataset')
+    parser.add_argument('--dataset_path', type=str, default=os.path.join('..', 'data', 'tiny-imagenet-200'), help='path were to save/get the dataset')
     parser.add_argument('--checkpoint_path', type=str, default='./', help='path were to save the trained model')
 
     parser.add_argument('--resume_train', action='store_true', help='load the model from checkpoint before training')
@@ -40,15 +41,11 @@ def main(args):
     ])
 
     # load train ds
-    trainset = torchvision.datasets.CIFAR10(root=args.dataset_path, train=True,
-                                            download=True, transform=transform)
-    trainloader = torch.utils.data.DataLoader(trainset, batch_size=args.batch_size,
-                                            shuffle=True, num_workers=args.workers)
-    # load test ds
-    testset = torchvision.datasets.CIFAR10(root=args.dataset_path, train=False,
-                                        download=True, transform=transform)
-    testloader = torch.utils.data.DataLoader(testset, batch_size=args.batch_size,
-                                            shuffle=False, num_workers=args.workers)
+    trainset = TinyImageNet(data_dir=args.dataset_path, transform=transform, subset='train')
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=args.batch_size, shuffle=True, num_workers=args.workers)
+    # load val ds
+    valset = TinyImageNet(data_dir=args.dataset_path, transform=transform, subset='val')
+    valloader = torch.utils.data.DataLoader(valset, batch_size=args.batch_size, shuffle=False, num_workers=args.workers)
 
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     print('Device: ', device)
@@ -56,7 +53,7 @@ def main(args):
     # define solver class
     solver = Solver(
         train_loader=trainloader,
-        test_loader=testloader,
+        val_loader=valloader,
         device=device,
         writer=writer,
         args=args
