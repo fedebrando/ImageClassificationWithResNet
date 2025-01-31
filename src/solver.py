@@ -32,17 +32,30 @@ class Solver(object):
         elif self.args.opt == 'Adam':
             self.optimizer = optim.Adam(self.net.parameters(), lr=self.args.lr)
 
+        # Epochs
         self.epochs = self.args.epochs
+
+        # Early stopping
+        self.early_stopping_enable = (self.args.early_stopping != None and self.args.early_stopping >= 0)
+        if self.early_stopping_enable:
+            self.max_eval_val = 0   # best-so-far model evaluation on validation set
+            self.non_imp = 0   # number of non-improvements on validation set
+            self.max_non_imp = self.args.early_stopping
+
+        # Data loaders
         self.train_loader = train_loader
         self.val_loader = val_loader
 
+        # Device
         self.device = device
 
+        # Tensorboard writer
         self.writer = writer
 
     def save_model(self):
         # If you want to save the model
         check_path = os.path.join(self.args.checkpoint_path, self.model_name)
+        os.makedirs(os.path.dirname(check_path), exist_ok=True) # create dir if it doesn't exist
         torch.save(self.net.state_dict(), check_path)
         print('Model saved!')
 
@@ -51,37 +64,49 @@ class Solver(object):
         check_path = os.path.join(self.args.checkpoint_path, self.model_name)
         self.net.load_state_dict(torch.load(check_path))
         print('Model loaded!')
+
+    def early_stopping(self) -> bool:
+        return (self.non_imp > self.max_non_imp) if self.early_stopping_enable else False
     
     def train(self):
+        # Store principal information on tensorboard
         self.writer.add_text(
-            'Hyperparameters and Settings',
+            'Info',
+            f'Run name: {self.args.run_name}\n' +
+            f'Model name: {self.args.model_name}\n' +
+            '\n' +
+            f'Model: ResNet-{self.args.depth}\n' +
+            f'Pretrained: {'Yes' if self.args.pretrained else 'No'}\n' +
+            '\n' +
+            f'Optimizer: {self.args.opt}\n' +
             f'Epochs: {self.args.epochs}\n' +
             f'Batch Size: {self.args.batch_size}\n' +
             f'Learning Rate: {self.args.lr}\n' +
-            f'Optimizer: {self.args.opt}'
+            f'Norm layers: {'Yes' if self.args.use_norm else 'No'}\n' +
+            f'Early stopping: {f'After {self.args.early_stopping} non-improvements' if self.early_stopping_enable else 'No'}'
         )
 
+        # TRAINING
         self.net.train()
         for epoch in range(self.epochs):  # loop over the dataset multiple times
-
             running_loss = 0.0
             for i, data in enumerate(self.train_loader, 0):
-                # get the inputs; data is a list of [inputs, labels]
+                # Get the inputs; data is a list of [inputs, labels]
                 inputs, labels = data
                 
-                # put data on correct device
+                # Put data on correct device
                 inputs, labels = inputs.to(self.device), labels.to(self.device)
                 
-                # zero the parameter gradients
+                # Zero the parameter gradients
                 self.optimizer.zero_grad()
 
-                # forward + backward + optimize
+                # Forward + Backward + Optimize
                 outputs = self.net(inputs)
                 loss = self.criterion(outputs, labels)
                 loss.backward()
                 self.optimizer.step()
 
-                # print statistics
+                # Print statistics
                 running_loss += loss.item()
                 if i % self.args.print_every == self.args.print_every - 1: 
                     print(f'[{epoch + 1}, {i + 1:5d}] loss: {running_loss / self.args.print_every:.3f}')
@@ -97,39 +122,53 @@ class Solver(object):
                     # Accuracy on training and validation set
                     self.evaluation(epoch, i, subset='train')
                     self.evaluation(epoch, i, subset='val')
-
-            self.save_model()
+                    if self.early_stopping():
+                        break
+            
+            if not self.early_stopping_enable:  # otherwise model is saved for each improvement on validation
+                self.save_model()
+            if self.early_stopping():
+                break
         
         self.writer.flush()
         self.writer.close()
-        print('Finished Training')   
+        print('Finished Training' + (' (early stop)' if epoch < self.epochs - 1 else ''))  
     
     def evaluation(self, epoch, i, subset: Literal['train', 'val']='val'):
-        # now lets evaluate the model (on training set or validation one)
+        # Now lets evaluate the model (on training set or validation one)
         correct = 0
         total = 0
 
-        # put net into evaluation mode
+        # Put net into evaluation mode
         self.net.eval()
 
-        # since we're not training, we don't need to calculate the gradients for our outputs
+        # Since we're not training, we don't need to calculate the gradients for our outputs
         with torch.no_grad():
             for data in (self.val_loader if subset == 'val' else self.train_loader):
                 inputs, labels = data
-                # put data on correct device
+                # Put data on correct device
                 inputs, labels = inputs.to(self.device), labels.to(self.device)
-                # calculate outputs by running images through the network
+                # Calculate outputs by running images through the network
                 outputs = self.net(inputs)
-                # the class with the highest energy is what we choose as prediction
+                # The class with the highest energy is what we choose as prediction
                 _, predicted = torch.max(outputs.data, 1)
                 total += labels.size(0)
                 correct += (predicted == labels).sum().item()
 
+        accuracy = 100 * correct / total
         self.writer.add_scalar(
             ('Validation' if subset == 'val' else 'Training') + 'Accuracy',
-            100 * correct / total,
+            accuracy,
             epoch * len(self.train_loader) + i
         )
+        if self.early_stopping_enable and subset == 'val':
+            if accuracy > self.max_eval_val: # improvement
+                self.max_eval_val = accuracy
+                self.non_imp = 0
+                self.save_model() # after an improvement, let's save the model
+            else:
+                self.non_imp += 1
 
-        print(f'Accuracy of the network on the {len(self.val_loader.dataset)} {'validation' if subset == 'val' else 'training'} images: {100 * correct / total} %')
+        print(f'Accuracy of the network on the {len((self.val_loader if subset == 'val' else self.train_loader).dataset)} {'validation' if subset == 'val' else 'training'} images: {100 * correct / total} %' + 
+              (f' [non-improvements: {self.non_imp}/{self.max_non_imp}]' if self.early_stopping_enable and subset == 'val' else ''))
         self.net.train()
