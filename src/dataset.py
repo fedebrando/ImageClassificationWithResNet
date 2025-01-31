@@ -68,7 +68,7 @@ class TinyImageNet(Dataset):
         with open(os.path.join(self._data_dir, 'words.txt'), 'r') as f:
             for line in f:
                 splitted = line[:-1].split()
-                classes_descriptions[splitted[0]] = ' '.join(splitted[1:])
+                classes_descriptions[splitted[0]] = ' '.join(splitted[1:]).split(',')[0]
         return classes_descriptions
 
     # It reads wnids.txt file and returns a list with all class-codes
