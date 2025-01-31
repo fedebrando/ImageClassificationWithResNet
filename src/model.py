@@ -29,9 +29,20 @@ class Net(nn.Module):
                     weights=(models.ResNet152_Weights.DEFAULT if args.pretrained else None)
                 )
         
+        # Normalization layers
+        if not args.use_norm:
+            self._remove_norm_layers(self._resnet)
+        
         # Change the last layer and add Softmax according to the task (200 disjoint classes)
         self._resnet.fc.out_features = num_classes
         self._resnet.add_module('Softmax', nn.Softmax(self._resnet.fc.out_features))
 
     def forward(self, x):
         return self._resnet(x)
+    
+    def _remove_norm_layers(self, module):
+        for name, child in module.named_children():
+            if isinstance(child, nn.BatchNorm2d):
+                setattr(module, name, nn.Identity())
+            else:
+                self._remove_norm_layers(child)

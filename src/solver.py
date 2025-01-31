@@ -18,7 +18,7 @@ class Solver(object):
 
         # Define the model
         self.net = Net(self.args, train_loader.dataset.num_classes()).to(device)
-
+        print(self.net)
         # Load a pretrained model
         if self.args.resume_train:
             self.load_model()
@@ -71,7 +71,7 @@ class Solver(object):
     def train(self):
         # Store principal information on tensorboard
         self.writer.add_text(
-            'Info',
+            'Info and Settings',
             f'Run name: {self.args.run_name}\n' +
             f'Model name: {self.args.model_name}\n' +
             '\n' +
