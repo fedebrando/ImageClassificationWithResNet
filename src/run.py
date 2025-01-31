@@ -43,23 +43,23 @@ def get_args():
 def main(args):
     writer = SummaryWriter('../runs/' + 'run_{}'.format(args.run_name))
 
-    # define transforms
+    # Define transforms
     transform = transforms.Compose([
         transforms.ToTensor(),
         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
     ])
 
-    # load train ds
+    # Load train ds
     trainset = TinyImageNet(data_dir=args.dataset_path, transform=transform, subset='train')
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=args.batch_size, shuffle=True, num_workers=args.workers)
-    # load val ds
+    # Load validation ds
     valset = TinyImageNet(data_dir=args.dataset_path, transform=transform, subset='val')
     valloader = torch.utils.data.DataLoader(valset, batch_size=args.batch_size, shuffle=False, num_workers=args.workers)
 
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     print('Device: ', device)
 
-    # define solver class
+    # Define solver class
     solver = Solver(
         train_loader=trainloader,
         val_loader=valloader,

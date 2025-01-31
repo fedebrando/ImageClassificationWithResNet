@@ -142,9 +142,12 @@ class Solver(object):
         # Put net into evaluation mode
         self.net.eval()
 
+        # Select correct loader
+        loader = self.val_loader if subset == 'val' else self.train_loader
+
         # Since we're not training, we don't need to calculate the gradients for our outputs
         with torch.no_grad():
-            for data in (self.val_loader if subset == 'val' else self.train_loader):
+            for data in loader:
                 inputs, labels = data
                 # Put data on correct device
                 inputs, labels = inputs.to(self.device), labels.to(self.device)
@@ -159,7 +162,7 @@ class Solver(object):
         self.writer.add_scalar(
             ('Validation' if subset == 'val' else 'Training') + 'Accuracy',
             accuracy,
-            epoch * len(self.train_loader) + i
+            epoch * len(loader) + i
         )
         if self.early_stopping_enable and subset == 'val':
             if accuracy > self.max_eval_val: # improvement
@@ -169,6 +172,6 @@ class Solver(object):
             else:
                 self.non_imp += 1
 
-        print(f'Accuracy of the network on the {len((self.val_loader if subset == 'val' else self.train_loader).dataset)} {'validation' if subset == 'val' else 'training'} images: {100 * correct / total} %' + 
+        print(f'Accuracy of the network on the {len(loader.dataset)} {'validation' if subset == 'val' else 'training'} images: {accuracy} %' + 
               (f' [non-improvements: {self.non_imp}/{self.max_non_imp}]' if self.early_stopping_enable and subset == 'val' else ''))
         self.net.train()
