@@ -13,6 +13,7 @@ class TinyImageNet(Dataset):
         self._transform = transform
         self._subset = subset           # training, validation or test set
         self._classes = self._load_classes()
+        self._classes_descriptions = self._load_descriptions()
         if subset == 'val':
             self._val_labels = self._load_val_labels()
         
@@ -56,6 +57,19 @@ class TinyImageNet(Dataset):
     # It returns the number of classes of Tiny ImageNet Dataset (storing this information is a skill of this class)
     def num_classes(self):
         return len(self._classes)
+    
+    # It returns the description of the received label
+    def label_description(self, label: int) -> str:
+        return self._classes_descriptions[self._classes[label]]
+
+    # It returns the classes/descriptions dict (it contains more classes, but to avoid temporal complexity it's ok)
+    def _load_descriptions(self) -> dict[str, str]:
+        classes_descriptions = {}
+        with open(os.path.join(self._data_dir, 'words.txt'), 'r') as f:
+            for line in f:
+                splitted = line[:-1].split()
+                classes_descriptions[splitted[0]] = ' '.join(splitted[1:])
+        return classes_descriptions
 
     # It reads wnids.txt file and returns a list with all class-codes
     def _load_classes(self) -> list[str]:
