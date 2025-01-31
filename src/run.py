@@ -21,6 +21,7 @@ def get_args():
     parser.add_argument('--batch_size', type=int, default=16, help='number of elements in batch size')
     parser.add_argument('--workers', type=int, default=2, help='number of workers in data loader')
     parser.add_argument('--print_every', type=int, default=500, help='print losses every N iteration')
+    parser.add_argument('--class_accuracy', action='store_true', help='print also accuracy for each class')
 
     parser.add_argument('--lr', type=float, default=0.001, help='learning rate')
     parser.add_argument('--opt', type=str, default='SGD', choices=['SGD', 'Adam'], help='optimizer used for training')
@@ -52,10 +53,12 @@ def main(args):
     # Load train ds
     trainset = TinyImageNet(data_dir=args.dataset_path, transform=transform, subset='train')
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=args.batch_size, shuffle=True, num_workers=args.workers)
+
     # Load validation ds
     valset = TinyImageNet(data_dir=args.dataset_path, transform=transform, subset='val')
     valloader = torch.utils.data.DataLoader(valset, batch_size=args.batch_size, shuffle=False, num_workers=args.workers)
 
+    # Device (GPU preference)
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     print('Device: ', device)
 

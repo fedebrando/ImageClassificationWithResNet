@@ -18,7 +18,7 @@ class Solver(object):
 
         # Define the model
         self.net = Net(self.args, train_loader.dataset.num_classes()).to(device)
-        print(self.net)
+
         # Load a pretrained model
         if self.args.resume_train:
             self.load_model()
@@ -135,15 +135,22 @@ class Solver(object):
         print('Finished Training' + (' (early stop)' if epoch < self.epochs - 1 else ''))  
     
     def evaluation(self, epoch, i, subset: Literal['train', 'val']='val'):
-        # Now lets evaluate the model (on training set or validation one)
-        correct = 0
-        total = 0
-
         # Put net into evaluation mode
         self.net.eval()
 
+        # Log using much
+        subset_log = ('Validation' if subset == 'val' else 'Training')
+
         # Select correct loader
         loader = self.val_loader if subset == 'val' else self.train_loader
+
+        if self.args.class_accuracy:
+            num_classes = loader.dataset.num_classes()
+            correct_c = torch.zeros(num_classes).to(self.device)
+            total_c = torch.zeros(num_classes).to(self.device)
+        else:
+            correct = 0
+            total = 0
 
         # Since we're not training, we don't need to calculate the gradients for our outputs
         with torch.no_grad():
@@ -155,15 +162,36 @@ class Solver(object):
                 outputs = self.net(inputs)
                 # The class with the highest energy is what we choose as prediction
                 _, predicted = torch.max(outputs.data, 1)
-                total += labels.size(0)
-                correct += (predicted == labels).sum().item()
 
-        accuracy = 100 * correct / total
+                if self.args.class_accuracy:
+                    correct_mask = predicted == labels
+                    total_c += torch.bincount(labels, minlength=num_classes) # count how many labels there are for each class
+                    correct_c += torch.bincount(labels[correct_mask], minlength=num_classes) # count correct predictions for each class
+                else:
+                    total += labels.size(0)
+                    correct += (predicted == labels).sum().item()
+
+        if self.args.class_accuracy:
+            accuracy_c = 100 * correct_c / total_c
+            for label in range(num_classes):
+                label_desc = f'{label} ({loader.dataset.label_description(label)})'
+                self.writer.add_scalar(
+                    'Accuracy/' + label_desc + ' ' + subset_log,
+                    accuracy_c[label],
+                    epoch * len(loader) + i
+                )
+                print(f'{subset_log} accuracy for class {label_desc}: {'{:.2f}'.format(accuracy_c[label])} %')
+            accuracy = correct_c.sum().item() / total_c.sum().item()
+        else:
+            accuracy = 100 * correct / total
+
         self.writer.add_scalar(
-            ('Validation' if subset == 'val' else 'Training') + 'Accuracy',
+            'Global Accuracy/' + subset_log,
             accuracy,
             epoch * len(loader) + i
         )
+
+        # Max validation accuracy updating (for early stopping)
         if self.early_stopping_enable and subset == 'val':
             if accuracy > self.max_eval_val: # improvement
                 self.max_eval_val = accuracy
@@ -172,6 +200,8 @@ class Solver(object):
             else:
                 self.non_imp += 1
 
-        print(f'Accuracy of the network on the {len(loader.dataset)} {'validation' if subset == 'val' else 'training'} images: {accuracy} %' + 
+        print(f'Accuracy of the network on the {len(loader.dataset)} {subset_log.lower()} images: {'{:.2f}'.format(accuracy)} %' + 
               (f' [non-improvements: {self.non_imp}/{self.max_non_imp}]' if self.early_stopping_enable and subset == 'val' else ''))
+        
+        # Finish Evaluation
         self.net.train()
