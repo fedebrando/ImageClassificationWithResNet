@@ -178,7 +178,7 @@ class Solver(object):
                 self.writer.add_scalar(
                     'Accuracy/' + label_desc + ' ' + subset_log,
                     accuracy_c[label],
-                    epoch * len(loader) + i
+                    epoch * len(self.train_loader) + i
                 )
                 print(f'{subset_log} accuracy for class {label_desc}: {'{:.2f}'.format(accuracy_c[label])} %')
             accuracy = correct_c.sum().item() / total_c.sum().item()
@@ -188,7 +188,7 @@ class Solver(object):
         self.writer.add_scalar(
             'Global Accuracy/' + subset_log,
             accuracy,
-            epoch * len(loader) + i
+            epoch * len(self.train_loader) + i
         )
 
         # Max validation accuracy updating (for early stopping)
