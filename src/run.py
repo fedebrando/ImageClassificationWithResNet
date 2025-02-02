@@ -36,6 +36,7 @@ def get_args():
 
     parser.add_argument('--dataset_path', type=str, default=os.path.join('..', 'data', 'tiny-imagenet-200'), help='path were to save/get the dataset')
     parser.add_argument('--checkpoint_path', type=str, default=os.path.join('..', 'models'), help='path were to save the trained model')
+    parser.add_argument('--training_classes', type=str, nargs='+', default=None, help='train model with a subset of classes')
 
     parser.add_argument('--resume_train', action='store_true', help='load the model from checkpoint before training')
 
@@ -51,7 +52,7 @@ def main(args):
     ])
 
     # Load train ds
-    trainset = TinyImageNet(data_dir=args.dataset_path, transform=transform, subset='train')
+    trainset = TinyImageNet(data_dir=args.dataset_path, transform=transform, subset='train', training_classes=args.training_classes)
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=args.batch_size, shuffle=True, num_workers=args.workers)
 
     # Load validation ds

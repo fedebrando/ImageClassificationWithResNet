@@ -103,7 +103,14 @@ class Solver(object):
             f'Batch Size: {self.args.batch_size}\n' +
             f'Learning Rate: {self.args.lr}\n' +
             f'Norm layers: {'yes' if self.args.use_norm else 'no'}\n' +
-            f'Early stopping: {f'after {self.args.early_stopping} non-improvements' if self.early_stopping_enable else 'no'}'
+            f'Early stopping: {f'after {self.args.early_stopping} non-improvements' if self.early_stopping_enable else 'no'}\n' +
+            '\n' +
+            f'Training classes: {
+                ', '.join(map(
+                    lambda c_l : f'{c_l[1]} ({self.train_loader.dataset.class_description(c_l[0])})',
+                    self.train_loader.dataset.training_classes_indexes()
+                )) if self.train_loader.dataset.training_with_subset() else 'all'
+            }'
         )
 
         # TRAINING
@@ -129,10 +136,9 @@ class Solver(object):
                 # Print statistics
                 running_loss += loss.item()
                 last_absolute_iter = (epoch == self.epochs - 1 and i == len(self.train_loader) - 1) # last absolute iteration
-                if (i % self.args.print_every == self.args.print_every - 1) or last_absolute_iter: 
-                    print(f'[{epoch + 1}, {i + 1:5d}] loss: {running_loss / self.args.print_every:.3f}')
+                if (i % self.args.print_every == self.args.print_every - 1) or last_absolute_iter:
+                    print(f'[{epoch + 1}, {i + 1:5d}] loss: {running_loss / (i % self.args.print_every + 1):.3f}')
 
-                    print(f'***\n{i % self.args.print_every + 1}\n***')
                     # plot new loss point
                     self.writer.add_scalar(
                         'Training Loss',

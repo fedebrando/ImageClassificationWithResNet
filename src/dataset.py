@@ -8,11 +8,16 @@ class TinyImageNet(Dataset):
     _N_TRAIN_IMAGES_PER_CLASS = 500
     _N_TEST_IMAGES = 10000
 
-    def __init__(self, data_dir, transform=None, subset: Literal['train', 'val', 'test']='train'):
+    def __init__(self, data_dir, transform=None, subset: Literal['train', 'val', 'test']='train', training_classes: list[str]=None):
         self._data_dir = data_dir       # root directory (tiny-imagenet-200)
         self._transform = transform
         self._subset = subset           # training, validation or test set
         self._classes = self._load_classes()
+        if subset == 'train':
+            self._training_classes = [c for c in set(training_classes) if c in self._classes] if training_classes else self._classes # to avoid error on input or duplicates
+            if not self._training_classes:
+                self._training_classes = self._classes
+            self._training_labels = [self._classes.index(c) for c in self._training_classes] if training_classes else [i for i in range(len(self._classes))]
         self._classes_descriptions = self._load_descriptions()
         if subset == 'val':
             self._val_labels = self._load_val_labels()
@@ -20,7 +25,7 @@ class TinyImageNet(Dataset):
     def __len__(self):
         match self._subset:
             case 'train':
-                return len(self._classes) * self._N_TRAIN_IMAGES_PER_CLASS
+                return len(self._training_classes) * self._N_TRAIN_IMAGES_PER_CLASS
             case 'val':
                 return len(self._val_labels)
             case 'test':
@@ -35,14 +40,14 @@ class TinyImageNet(Dataset):
                     os.path.join(
                         self._data_dir,
                         'train',
-                        self._classes[class_idx],
+                        self._training_classes[class_idx],
                         'images',
-                        f'{self._classes[class_idx]}_{class_offset}.JPEG'
+                        f'{self._training_classes[class_idx]}_{class_offset}.JPEG'
                     )
                 ).convert('RGB')
                 if self._transform:
                     image = self._transform(image)
-                return image, class_idx
+                return image, self._training_labels[class_idx]
             case 'val':
                 image = Image.open(os.path.join(self._data_dir, 'val', 'images', f'val_{idx}.JPEG')).convert('RGB')
                 if self._transform:
@@ -54,13 +59,29 @@ class TinyImageNet(Dataset):
                     image = self._transform(image)
                 return image
 
+    # It returns True if a subset of training class is used, False otherwise (None if this dataset is not for training)
+    def training_with_subset(self) -> bool | None:
+        return not (self._classes is self._training_classes) if self._subset == 'train' else None
+
+    # It returns the list of couples (training class, training label) if this is a training set, None otherwise
+    def training_classes_indexes(self) -> list[tuple[str, int]] | None:
+        return zip(self._training_classes, self._training_labels) if self._subset == 'train' else None
+
     # It returns the number of classes of Tiny ImageNet Dataset (storing this information is a skill of this class)
-    def num_classes(self):
+    def num_classes(self) -> int:
         return len(self._classes)
     
+    # It returns the description of the received class (class ID)
+    def class_description(self, class_id: str) -> str:
+        return self._classes_descriptions[class_id]
+
     # It returns the description of the received label
     def label_description(self, label: int) -> str:
-        return self._classes_descriptions[self._classes[label]]
+        return self.class_description(self._classes[label])
+    
+    # It returns the label of the received class (class ID)
+    def class_to_label(self, c: str) -> int:
+        return self._classes.index(c)
 
     # It returns the classes/descriptions dict (it contains more classes, but to avoid temporal complexity it's ok)
     def _load_descriptions(self) -> dict[str, str]:
