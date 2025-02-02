@@ -35,10 +35,12 @@ class Solver(object):
         # Epochs
         self.epochs = self.args.epochs
 
+        # Best-so-far global accuracy on validation set
+        self.best_accuracy = 0
+
         # Early stopping
         self.early_stopping_enable = (self.args.early_stopping != None and self.args.early_stopping >= 0)
         if self.early_stopping_enable:
-            self.max_eval_val = 0   # best-so-far model evaluation on validation set
             self.non_imp = 0   # number of non-improvements on validation set
             self.max_non_imp = self.args.early_stopping
 
@@ -49,14 +51,22 @@ class Solver(object):
         # Device
         self.device = device
 
+        # Absolute iteration of the last saved model
+        self.iter_model_save = None
+        self.val_accuracy_c_model_save = None
+
         # Tensorboard writer
         self.writer = writer
 
-    def save_model(self):
+    def absolute_iter(self, epoch, i):
+        return epoch * len(self.train_loader) + i
+
+    def save_model(self, epoch, i):
         # If you want to save the model
         check_path = os.path.join(self.args.checkpoint_path, self.model_name)
         os.makedirs(os.path.dirname(check_path), exist_ok=True) # create dir if it doesn't exist
         torch.save(self.net.state_dict(), check_path)
+        self.iter_model_save = self.absolute_iter(epoch, i)
         print('Model saved!')
 
     def load_model(self):
@@ -65,8 +75,18 @@ class Solver(object):
         self.net.load_state_dict(torch.load(check_path))
         print('Model loaded!')
 
+    # It returns True if the early stopping condition is satisfied, False otherwise
     def early_stopping(self) -> bool:
         return (self.non_imp > self.max_non_imp) if self.early_stopping_enable else False
+    
+    # It saves on tensorboard the class accuracy histogram for the last saved model
+    def save_class_accuracy_histogram(self):
+        for label in range(self.train_loader.dataset.num_classes()):
+            self.writer.add_histogram(
+                f'Model class accuracy (absolute iter {self.iter_model_save})',
+                self.val_accuracy_c_model_save[label].item(),
+                label
+            )
     
     def train(self):
         # Store principal information on tensorboard
@@ -108,30 +128,39 @@ class Solver(object):
 
                 # Print statistics
                 running_loss += loss.item()
-                if i % self.args.print_every == self.args.print_every - 1: 
+                last_absolute_iter = (epoch == self.epochs - 1 and i == len(self.train_loader) - 1) # last absolute iteration
+                if (i % self.args.print_every == self.args.print_every - 1) or last_absolute_iter: 
                     print(f'[{epoch + 1}, {i + 1:5d}] loss: {running_loss / self.args.print_every:.3f}')
 
+                    print(f'***\n{i % self.args.print_every + 1}\n***')
+                    # plot new loss point
                     self.writer.add_scalar(
                         'Training Loss',
-                        running_loss / self.args.print_every,
-                        epoch * len(self.train_loader) + i
+                        running_loss / (i % self.args.print_every + 1),
+                        self.absolute_iter(epoch, i)
                     )
                     
                     running_loss = 0.0
 
-                    # Accuracy on training and validation set
+                    # accuracy on training and validation set
                     self.evaluation(epoch, i, subset='train')
-                    self.evaluation(epoch, i, subset='val')
+                    self.evaluation(epoch, i, subset='val') # with model saving if there's an improvement
+
+                    # early stopping condition to exit from iteration loop
                     if self.early_stopping():
                         break
-            
-            if not self.early_stopping_enable:  # otherwise model is saved for each improvement on validation
-                self.save_model()
+
+            # Early stopping to exit from epoch loop
             if self.early_stopping():
                 break
         
+        # Save class accuracy of the saved model
+        if self.args.class_accuracy:
+            self.save_class_accuracy_histogram()
+
         self.writer.flush()
         self.writer.close()
+
         print('Finished Training' + (' (early stop)' if epoch < self.epochs - 1 else ''))  
     
     def evaluation(self, epoch, i, subset: Literal['train', 'val']='val'):
@@ -144,6 +173,7 @@ class Solver(object):
         # Select correct loader
         loader = self.val_loader if subset == 'val' else self.train_loader
 
+        # Global accuracy and, eventually, the accuracy for each class
         if self.args.class_accuracy:
             num_classes = loader.dataset.num_classes()
             correct_c = torch.zeros(num_classes).to(self.device)
@@ -156,13 +186,17 @@ class Solver(object):
         with torch.no_grad():
             for data in loader:
                 inputs, labels = data
-                # Put data on correct device
+
+                # put data on correct device
                 inputs, labels = inputs.to(self.device), labels.to(self.device)
-                # Calculate outputs by running images through the network
+
+                # calculate outputs by running images through the network
                 outputs = self.net(inputs)
-                # The class with the highest energy is what we choose as prediction
+
+                # the class with the highest energy is what we choose as prediction
                 _, predicted = torch.max(outputs.data, 1)
 
+                # correct predictions counting
                 if self.args.class_accuracy:
                     correct_mask = predicted == labels
                     total_c += torch.bincount(labels, minlength=num_classes) # count how many labels there are for each class
@@ -171,36 +205,56 @@ class Solver(object):
                     total += labels.size(0)
                     correct += (predicted == labels).sum().item()
 
+        # Compute accuracy
         if self.args.class_accuracy:
+            # compute accuracy for each class
             accuracy_c = 100 * correct_c / total_c
+
             for label in range(num_classes):
+                # label description (for more readable stats)
                 label_desc = f'{label} ({loader.dataset.label_description(label)})'
+
+                # plot and print new accuracy for this class
                 self.writer.add_scalar(
                     'Accuracy/' + label_desc + ' ' + subset_log,
                     accuracy_c[label],
-                    epoch * len(self.train_loader) + i
+                    self.absolute_iter(epoch, i)
                 )
-                print(f'{subset_log} accuracy for class {label_desc}: {'{:.2f}'.format(accuracy_c[label])} %')
-            accuracy = correct_c.sum().item() / total_c.sum().item()
+                print(f'{subset_log} accuracy for class {label_desc}: {accuracy_c[label].item():.2f} %')
+
+            # compute global accuracy
+            accuracy = 100 * correct_c.sum().item() / total_c.sum().item()
         else:
+            # compute only global accuracy
             accuracy = 100 * correct / total
 
+        # Plot new global accuracy point
         self.writer.add_scalar(
             'Global Accuracy/' + subset_log,
             accuracy,
-            epoch * len(self.train_loader) + i
+            self.absolute_iter(epoch, i)
         )
 
-        # Max validation accuracy updating (for early stopping)
-        if self.early_stopping_enable and subset == 'val':
-            if accuracy > self.max_eval_val: # improvement
-                self.max_eval_val = accuracy
-                self.non_imp = 0
-                self.save_model() # after an improvement, let's save the model
-            else:
+        # Best validation accuracy updating
+        if subset == 'val':
+            if accuracy > self.best_accuracy: # improvement
+                # best-so-far accuracy update
+                self.best_accuracy = accuracy
+
+                # zero the non-improvements counter
+                if self.early_stopping_enable:
+                    self.non_imp = 0
+
+                # save validation accuracy for each class
+                if self.args.class_accuracy:
+                    self.val_accuracy_c_model_save = accuracy_c.to('cpu')
+
+                # after an improvement, let's save the model
+                self.save_model(epoch, i)
+            elif self.early_stopping_enable:
                 self.non_imp += 1
 
-        print(f'Accuracy of the network on the {len(loader.dataset)} {subset_log.lower()} images: {'{:.2f}'.format(accuracy)} %' + 
+        print(f'Accuracy of the network on the {len(loader.dataset)} {subset_log.lower()} images: {accuracy:.2f} %' + 
               (f' [non-improvements: {self.non_imp}/{self.max_non_imp}]' if self.early_stopping_enable and subset == 'val' else ''))
         
         # Finish Evaluation

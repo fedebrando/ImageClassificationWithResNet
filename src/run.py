@@ -11,8 +11,8 @@ from dataset import TinyImageNet
 def get_args():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--run_name', type=str, default='1', help='name of current run')
-    parser.add_argument('--model_name', type=str, default='1', help='name of the model to be saved/loaded')
+    parser.add_argument('--run_name', type=str, default='unknown', help='name of current run')
+    parser.add_argument('--model_name', type=str, default='unknown', help='name of the model to be saved/loaded')
 
     parser.add_argument('--depth', type=str, default='18', choices=['18', '34', '50', '101', '152'], help='depth of the ResNet model')
     parser.add_argument('--pretrained', action='store_true', help='use pretrained model (DEFAULT weights)')
