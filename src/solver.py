@@ -76,14 +76,14 @@ class Solver(object):
             f'Model name: {self.args.model_name}\n' +
             '\n' +
             f'Model: ResNet-{self.args.depth}\n' +
-            f'Pretrained: {'Yes' if self.args.pretrained else 'No'}\n' +
+            f'Pretrained: {'yes' if self.args.pretrained else 'no'}\n' +
             '\n' +
             f'Optimizer: {self.args.opt}\n' +
             f'Epochs: {self.args.epochs}\n' +
             f'Batch Size: {self.args.batch_size}\n' +
             f'Learning Rate: {self.args.lr}\n' +
-            f'Norm layers: {'Yes' if self.args.use_norm else 'No'}\n' +
-            f'Early stopping: {f'After {self.args.early_stopping} non-improvements' if self.early_stopping_enable else 'No'}'
+            f'Norm layers: {'yes' if self.args.use_norm else 'no'}\n' +
+            f'Early stopping: {f'after {self.args.early_stopping} non-improvements' if self.early_stopping_enable else 'no'}'
         )
 
         # TRAINING
