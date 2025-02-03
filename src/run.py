@@ -19,9 +19,9 @@ def get_args():
     parser.add_argument('--freeze', type=str, nargs='+', default=[], help='train model freezing subset of layers by name')
 
     parser.add_argument('--epochs', type=int, default=2, help='number of epochs')
-    parser.add_argument('--batch_size', type=int, default=16, help='number of elements in batch size')
+    parser.add_argument('--batch_size', type=int, default=16, help='number of elements in a batch')
     parser.add_argument('--workers', type=int, default=2, help='number of workers in data loader')
-    parser.add_argument('--print_every', type=int, default=500, help='print losses every N iteration')
+    parser.add_argument('--print_every', type=int, default=500, help='print losses and validate model every that number of iterations')
     parser.add_argument('--class_accuracy', action='store_true', help='print also accuracy for each class')
 
     parser.add_argument('--lr', type=float, default=0.001, help='learning rate')
@@ -36,7 +36,7 @@ def get_args():
 
     parser.add_argument('--dataset_path', type=str, default=os.path.join('..', 'data', 'tiny-imagenet-200'), help='path were to save/get the dataset')
     parser.add_argument('--checkpoint_path', type=str, default=os.path.join('..', 'models'), help='path were to save the trained model')
-    parser.add_argument('--training_classes', type=str, nargs='+', default=None, help='train model with a subset of classes')
+    parser.add_argument('--training_classes', type=str, nargs='+', default=None, help='train (and validate) model with a subset of classes')
 
     parser.add_argument('--resume_train', action='store_true', help='load the model from checkpoint before training')
 
