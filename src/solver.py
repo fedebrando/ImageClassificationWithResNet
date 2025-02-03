@@ -90,9 +90,9 @@ class Solver(object):
                 self.val_accuracy_c_model_save[label].item(),
                 label
             )
-    
-    def train(self):
-        # Store principal information on tensorboard
+
+    # Store principal information on tensorboard
+    def store_info_settings(self):
         self.writer.add_text(
             'Info and Settings',
             f'Run name: {self.args.run_name}\n' +
@@ -100,6 +100,7 @@ class Solver(object):
             '\n' +
             f'Model: ResNet-{self.args.depth}\n' +
             f'Pretrained: {'yes' if self.args.pretrained else 'no'}\n' +
+            f'Freezed modules: {(', '.join(self.args.freeze)) if self.args.freeze else 'none'}\n' +
             '\n' +
             f'Optimizer: {self.args.opt}\n' +
             f'Epochs: {self.args.epochs}\n' +
@@ -115,6 +116,10 @@ class Solver(object):
                 )) if self.train_loader.dataset.training_with_subset() else 'all'
             }'
         )
+    
+    def train(self):
+        # Store general info
+        self.store_info_settings()
 
         # TRAINING
         self.net.train()

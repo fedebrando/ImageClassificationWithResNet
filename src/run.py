@@ -16,6 +16,7 @@ def get_args():
 
     parser.add_argument('--depth', type=str, default='18', choices=['18', '34', '50', '101', '152'], help='depth of the ResNet model')
     parser.add_argument('--pretrained', action='store_true', help='use pretrained model (DEFAULT weights)')
+    parser.add_argument('--freeze', type=str, nargs='+', default=[], help='train model freezing subset of layers by name')
 
     parser.add_argument('--epochs', type=int, default=2, help='number of epochs')
     parser.add_argument('--batch_size', type=int, default=16, help='number of elements in batch size')

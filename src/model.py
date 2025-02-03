@@ -37,6 +37,12 @@ class Net(nn.Module):
         self._resnet.fc.out_features = num_classes
         self._resnet.add_module('Softmax', nn.Softmax(self._resnet.fc.out_features))
 
+        # Freezing specified modules
+        if args.freeze:
+            for name, param in self._resnet.named_parameters():
+                if any(arg_name in name for arg_name in args.freeze):
+                    param.requires_grad = False
+
     def forward(self, x):
         return self._resnet(x)
     
