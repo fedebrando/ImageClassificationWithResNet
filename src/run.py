@@ -27,7 +27,6 @@ def get_args():
     parser.add_argument('--lr', type=float, default=0.001, help='learning rate')
     parser.add_argument('--opt', type=str, default='SGD', choices=['SGD', 'Adam'], help='optimizer used for training')
     parser.add_argument('--use_norm', action='store_true', help='use normalization layers in model')
-    parser.add_argument('--feat', type=int, default=16, help='number of features in model')
     parser.add_argument(
         '--early_stopping',
         type=int,

@@ -39,16 +39,22 @@ class Net(nn.Module):
 
         # Freezing specified modules
         if args.freeze:
-            for name, param in self._resnet.named_parameters():
-                if any(arg_name in name for arg_name in args.freeze):
-                    param.requires_grad = False
+            self._freeze_specified_modules(args.freeze)
 
+    # Inference
     def forward(self, x):
         return self._resnet(x)
     
+    # It replaces BatchNorm2d modules with the Identity ones
     def _remove_norm_layers(self, module):
         for name, child in module.named_children():
             if isinstance(child, nn.BatchNorm2d):
                 setattr(module, name, nn.Identity())
             else:
                 self._remove_norm_layers(child)
+
+    # It freezes all parameters which names contains at least one of the received names
+    def _freeze_specified_modules(self, module_names):
+        for name, param in self._resnet.named_parameters():
+            if any(arg_name in name for arg_name in module_names):
+                param.requires_grad = False
