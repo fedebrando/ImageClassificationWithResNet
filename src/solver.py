@@ -8,10 +8,10 @@ from typing import Literal
 from model import Net
 
 class Solver(object):
-    """Solver for training and testing."""
+    '''Solver for training and testing.'''
 
     def __init__(self, train_loader, val_loader, device, writer, args):
-        """Initialize configurations."""
+        '''Initialize configurations.'''
 
         self.args = args
         self.model_name = 'model_{}.pth'.format(self.args.model_name)
@@ -91,31 +91,31 @@ class Solver(object):
                 label
             )
 
-    # Store principal information on tensorboard
     def store_info_settings(self):
-        self.writer.add_text(
-            'Info and Settings',
-            f'Run name: {self.args.run_name}\n' +
-            f'Model name: {self.args.model_name}\n' +
-            '\n' +
-            f'Model: ResNet-{self.args.depth}\n' +
-            f'Pretrained: {'yes' if self.args.pretrained else 'no'}\n' +
-            f'Freezed modules: {(', '.join(self.args.freeze)) if self.args.freeze else 'none'}\n' +
-            '\n' +
-            f'Optimizer: {self.args.opt}\n' +
-            f'Epochs: {self.args.epochs}\n' +
-            f'Batch Size: {self.args.batch_size}\n' +
-            f'Learning Rate: {self.args.lr}\n' +
-            f'Norm layers: {'yes' if self.args.use_norm else 'no'}\n' +
-            f'Early stopping: {f'after {self.args.early_stopping} non-improvements' if self.early_stopping_enable else 'no'}\n' +
-            '\n' +
-            f'Training classes: {
+        table = (
+            '| Setting | Value |\n'
+            '|---------|-------|\n'
+            f'| **Run name** | {self.args.run_name} |\n'
+            f'| **Model name** | {self.args.model_name} |\n'
+            f'| **Model** | ResNet-{self.args.depth} |\n'
+            f'| **Pretrained** | {'🟢 yes' if self.args.pretrained else '🔴 no'} |\n'
+            f'| **Freezed modules** | {', '.join(self.args.freeze) if self.args.freeze else 'none'} |\n'
+            f'| **Optimizer** | {self.args.opt} |\n'
+            f'| **Epochs** | {self.args.epochs} |\n'
+            f'| **Batch Size** | {self.args.batch_size} |\n'
+            f'| **Learning Rate** | {self.args.lr} |\n'
+            f'| **Norm layers** | {'🟢 yes' if self.args.use_norm else '🔴 no'} |\n'
+            f'| **Early stopping** | {f'🟢 yes (after {self.args.early_stopping} non-improvements on validation)'
+                                      if self.early_stopping_enable else '🔴 no'} |\n'
+            f'| **Training classes** | {
                 ', '.join(map(
-                    lambda c_l : f'{c_l[1]} ({self.train_loader.dataset.class_description(c_l[0])})',
+                    lambda c_l: f'{c_l[1]} ({self.train_loader.dataset.class_description(c_l[0])})',
                     self.train_loader.dataset.training_classes_indexes()
                 )) if self.train_loader.dataset.training_with_subset() else 'all'
-            }'
+            } |\n'
         )
+        self.writer.add_text('Model Info', table)
+
     
     def train(self):
         # Store general info
