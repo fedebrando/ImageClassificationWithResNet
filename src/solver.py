@@ -55,6 +55,9 @@ class Solver(object):
         self.iter_model_save = None
         self.val_accuracy_c_model_save = None
 
+        # Train labels
+        self.train_labels = train_loader.dataset.train_labels()
+
         # Tensorboard writer
         self.writer = writer
 
@@ -81,7 +84,7 @@ class Solver(object):
     
     # It saves on tensorboard the class accuracy histogram for the last saved model
     def save_class_accuracy_histogram(self):
-        for label in range(self.train_loader.dataset.num_classes()):
+        for label in self.train_labels:
             self.writer.add_histogram(
                 f'Model class accuracy (absolute iter {self.iter_model_save})',
                 self.val_accuracy_c_model_save[label].item(),
@@ -216,17 +219,17 @@ class Solver(object):
             # compute accuracy for each class
             accuracy_c = 100 * correct_c / total_c
 
-            for label in range(num_classes):
-                # label description (for more readable stats)
-                label_desc = f'{label} ({loader.dataset.label_description(label)})'
+            for label in self.train_labels:
+                    # label description (for more readable stats)
+                    label_desc = f'{label} ({loader.dataset.label_description(label)})'
 
-                # plot and print new accuracy for this class
-                self.writer.add_scalar(
-                    'Accuracy/' + label_desc + ' ' + subset_log,
-                    accuracy_c[label],
-                    self.absolute_iter(epoch, i)
-                )
-                print(f'{subset_log} accuracy for class {label_desc}: {accuracy_c[label].item():.2f} %')
+                    # plot and print new accuracy for this class
+                    self.writer.add_scalar(
+                        'Accuracy/' + label_desc + ' ' + subset_log,
+                        accuracy_c[label],
+                        self.absolute_iter(epoch, i)
+                    )
+                    print(f'{subset_log} accuracy for class {label_desc}: {accuracy_c[label].item():.2f} %')
 
             # compute global accuracy
             accuracy = 100 * correct_c.sum().item() / total_c.sum().item()

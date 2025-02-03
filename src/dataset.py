@@ -13,21 +13,22 @@ class TinyImageNet(Dataset):
         self._transform = transform
         self._subset = subset           # training, validation or test set
         self._classes = self._load_classes()
-        if subset == 'train':
+        if subset != 'test':
             self._training_classes = [c for c in set(training_classes) if c in self._classes] if training_classes else self._classes # to avoid error on input or duplicates
             if not self._training_classes:
                 self._training_classes = self._classes
             self._training_labels = [self._classes.index(c) for c in self._training_classes] if training_classes else [i for i in range(len(self._classes))]
         self._classes_descriptions = self._load_descriptions()
         if subset == 'val':
-            self._val_labels = self._load_val_labels()
+            val_labels = self._load_val_labels()
+            self._val_indexes_labels = [(i, l) for i, l in enumerate(val_labels) if l in self._training_labels] # list[(img_index, label)]
         
     def __len__(self):
         match self._subset:
             case 'train':
                 return len(self._training_classes) * self._N_TRAIN_IMAGES_PER_CLASS
             case 'val':
-                return len(self._val_labels)
+                return len(self._val_indexes_labels)
             case 'test':
                 return self._N_TEST_IMAGES
     
@@ -49,10 +50,11 @@ class TinyImageNet(Dataset):
                     image = self._transform(image)
                 return image, self._training_labels[class_idx]
             case 'val':
-                image = Image.open(os.path.join(self._data_dir, 'val', 'images', f'val_{idx}.JPEG')).convert('RGB')
+                i, l = self._val_indexes_labels[idx]
+                image = Image.open(os.path.join(self._data_dir, 'val', 'images', f'val_{i}.JPEG')).convert('RGB')
                 if self._transform:
                     image = self._transform(image)
-                return image, self._val_labels[idx]
+                return image, l
             case 'test':
                 image = Image.open(os.path.join(self._data_dir, 'test', 'images', f'test_{idx}.JPEG')).convert('RGB')
                 if self._transform:
@@ -71,6 +73,10 @@ class TinyImageNet(Dataset):
     def num_classes(self) -> int:
         return len(self._classes)
     
+    # It returns a copy of the train labels list
+    def train_labels(self) -> int:
+        return self._training_labels.copy()
+    
     # It returns the description of the received class (class ID)
     def class_description(self, class_id: str) -> str:
         return self._classes_descriptions[class_id]
@@ -78,10 +84,6 @@ class TinyImageNet(Dataset):
     # It returns the description of the received label
     def label_description(self, label: int) -> str:
         return self.class_description(self._classes[label])
-    
-    # It returns the label of the received class (class ID)
-    def class_to_label(self, c: str) -> int:
-        return self._classes.index(c)
 
     # It returns the classes/descriptions dict (it contains more classes, but to avoid temporal complexity it's ok)
     def _load_descriptions(self) -> dict[str, str]:

@@ -56,7 +56,7 @@ def main(args):
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=args.batch_size, shuffle=True, num_workers=args.workers)
 
     # Load validation ds
-    valset = TinyImageNet(data_dir=args.dataset_path, transform=transform, subset='val')
+    valset = TinyImageNet(data_dir=args.dataset_path, transform=transform, subset='val', training_classes=args.training_classes)
     valloader = torch.utils.data.DataLoader(valset, batch_size=args.batch_size, shuffle=False, num_workers=args.workers)
 
     # Device (GPU preference)
