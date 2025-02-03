@@ -1,4 +1,4 @@
-# ResNet for Image Classification (Deep Learning and Generative Models course)
+# ResNet for Image Classification
 The entry point for model training is in `src/run.py`. You can launch the python script using command
 ```bash
 python run.py
