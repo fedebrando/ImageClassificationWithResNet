@@ -36,7 +36,7 @@ def get_args():
 
     parser.add_argument('--dataset_path', type=str, default=os.path.join('..', 'data', 'tiny-imagenet-200'), help='path were to save/get the dataset')
     parser.add_argument('--checkpoint_path', type=str, default=os.path.join('..', 'models'), help='path were to save the trained model')
-    parser.add_argument('--training_classes', type=str, nargs='+', default=None, help='train (and validate) model with a subset of classes')
+    parser.add_argument('--classes_subset', type=str, nargs='+', default=None, help='train (and validate) model with a subset of classes')
 
     parser.add_argument('--resume_train', action='store_true', help='load the model from checkpoint before training')
 
@@ -51,12 +51,12 @@ def main(args):
         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
     ])
 
-    # Load train ds
-    trainset = TinyImageNet(data_dir=args.dataset_path, transform=transform, subset='train', training_classes=args.training_classes)
+    # Load training set
+    trainset = TinyImageNet(data_dir=args.dataset_path, transform=transform, data_subset='train', classes_subset=args.classes_subset)
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=args.batch_size, shuffle=True, num_workers=args.workers)
 
-    # Load validation ds
-    valset = TinyImageNet(data_dir=args.dataset_path, transform=transform, subset='val', training_classes=args.training_classes)
+    # Load validation set
+    valset = TinyImageNet(data_dir=args.dataset_path, transform=transform, data_subset='val', classes_subset=args.classes_subset)
     valloader = torch.utils.data.DataLoader(valset, batch_size=args.batch_size, shuffle=False, num_workers=args.workers)
 
     # Device (GPU preference)
@@ -75,7 +75,7 @@ def main(args):
     # TRAIN model
     solver.train()
 
-if __name__ == '__main__':
+if __name__ == '__main__': # Entry point
     args = get_args()
     print(args)
     main(args)

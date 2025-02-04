@@ -8,16 +8,15 @@ from typing import Literal
 from model import Net
 
 class Solver(object):
-    '''Solver for training and testing.'''
+    '''Solver for training and validation stages'''
 
     def __init__(self, train_loader, val_loader, device, writer, args):
-        '''Initialize configurations.'''
-
         self.args = args
         self.model_name = 'model_{}.pth'.format(self.args.model_name)
+        self.n_classes = train_loader.dataset.n_classes()
 
         # Define the model
-        self.net = Net(self.args, train_loader.dataset.num_classes()).to(device)
+        self.net = Net(self.args, self.n_classes).to(device)
 
         # Load a pretrained model
         if self.args.resume_train:
@@ -55,17 +54,19 @@ class Solver(object):
         self.iter_model_save = None
         self.val_accuracy_c_model_save = None
 
-        # Train labels
-        self.train_labels = train_loader.dataset.train_labels()
-
         # Tensorboard writer
         self.writer = writer
 
     def absolute_iter(self, epoch, i):
+        '''
+        Returns the absolute iteration from received values
+        '''
         return epoch * len(self.train_loader) + i
 
     def save_model(self, epoch, i):
-        # If you want to save the model
+        '''
+        Saves the model
+        '''
         check_path = os.path.join(self.args.checkpoint_path, self.model_name)
         os.makedirs(os.path.dirname(check_path), exist_ok=True) # create dir if it doesn't exist
         torch.save(self.net.state_dict(), check_path)
@@ -73,18 +74,24 @@ class Solver(object):
         print('Model saved!')
 
     def load_model(self):
-        # Function to load the model
+        '''
+        Loads the model
+        '''
         check_path = os.path.join(self.args.checkpoint_path, self.model_name)
         self.net.load_state_dict(torch.load(check_path))
         print('Model loaded!')
 
-    # It returns True if the early stopping condition is satisfied, False otherwise
     def early_stopping(self) -> bool:
+        '''
+        Returns True if the early stopping condition is satisfied, False otherwise
+        '''
         return (self.non_imp > self.max_non_imp) if self.early_stopping_enable else False
     
-    # It saves on tensorboard the class accuracy histogram for the last saved model
     def save_class_accuracy_histogram(self):
-        for label in self.train_labels:
+        '''
+        Saves on tensorboard the class accuracy histogram for the last saved mode
+        '''
+        for label in range(self.n_classes):
             self.writer.add_histogram(
                 f'Model class accuracy (absolute iter {self.iter_model_save})',
                 self.val_accuracy_c_model_save[label].item(),
@@ -92,6 +99,9 @@ class Solver(object):
             )
 
     def store_info_settings(self):
+        '''
+        Stores on tensorboard information and settings about model and training
+        '''
         table = (
             '| Setting | Value |\n'
             '|---------|-------|\n'
@@ -99,25 +109,22 @@ class Solver(object):
             f'| **Model name** | {self.args.model_name} |\n'
             f'| **Model** | ResNet-{self.args.depth} |\n'
             f'| **Pretrained** | {'🟢 yes' if self.args.pretrained else '🔴 no'} |\n'
-            f'| **Freezed modules** | {', '.join(self.args.freeze) if self.args.freeze else 'none'} |\n'
+            f'| **Freezed modules** | {', '.join(self.args.freeze) if self.args.freeze else '-'} |\n'
             f'| **Optimizer** | {self.args.opt} |\n'
             f'| **Epochs** | {self.args.epochs} |\n'
             f'| **Batch Size** | {self.args.batch_size} |\n'
             f'| **Learning Rate** | {self.args.lr} |\n'
             f'| **Norm layers** | {'🟢 yes' if self.args.use_norm else '🔴 no'} |\n'
-            f'| **Early stopping** | {f'🟢 yes (after {self.args.early_stopping} non-improvements on validation)'
-                                      if self.early_stopping_enable else '🔴 no'} |\n'
-            f'| **Training classes** | {
-                ', '.join(map(
-                    lambda c_l: f'{c_l[1]} ({self.train_loader.dataset.class_description(c_l[0])})',
-                    self.train_loader.dataset.training_classes_indexes()
-                )) if self.train_loader.dataset.training_with_subset() else 'all'
-            } |\n'
+            f'| **Early stopping** | {f'🟢 yes (after {self.args.early_stopping} non-improvements on validation)' if self.early_stopping_enable else '🔴 no'} |\n'
+            f'| **Classes** |' +
+                f'{', '.join(f'{self.train_loader.dataset.label_description(label)} ({label})' for label in range(self.n_classes)) if self.train_loader.dataset.classes_subset_enabled() else 'all'} |'
         )
         self.writer.add_text('Model Info', table)
-
     
     def train(self):
+        '''
+        Trains the model on the training set
+        '''
         # Store general info
         self.store_info_settings()
 
@@ -178,6 +185,9 @@ class Solver(object):
         print('Finished Training' + (' (early stop)' if epoch < self.epochs - 1 else ''))  
     
     def evaluation(self, epoch, i, subset: Literal['train', 'val']='val'):
+        '''
+        Evaluates the model on the specified data subset
+        '''
         # Put net into evaluation mode
         self.net.eval()
 
@@ -189,9 +199,8 @@ class Solver(object):
 
         # Global accuracy and, eventually, the accuracy for each class
         if self.args.class_accuracy:
-            num_classes = loader.dataset.num_classes()
-            correct_c = torch.zeros(num_classes).to(self.device)
-            total_c = torch.zeros(num_classes).to(self.device)
+            correct_c = torch.zeros(self.n_classes).to(self.device)
+            total_c = torch.zeros(self.n_classes).to(self.device)
         else:
             correct = 0
             total = 0
@@ -213,8 +222,8 @@ class Solver(object):
                 # correct predictions counting
                 if self.args.class_accuracy:
                     correct_mask = predicted == labels
-                    total_c += torch.bincount(labels, minlength=num_classes) # count how many labels there are for each class
-                    correct_c += torch.bincount(labels[correct_mask], minlength=num_classes) # count correct predictions for each class
+                    total_c += torch.bincount(labels, minlength=self.n_classes) # count how many labels there are for each class
+                    correct_c += torch.bincount(labels[correct_mask], minlength=self.n_classes) # count correct predictions for each class
                 else:
                     total += labels.size(0)
                     correct += (predicted == labels).sum().item()
@@ -224,7 +233,7 @@ class Solver(object):
             # compute accuracy for each class
             accuracy_c = 100 * correct_c / total_c
 
-            for label in self.train_labels:
+            for label in range(self.n_classes):
                     # label description (for more readable stats)
                     label_desc = f'{label} ({loader.dataset.label_description(label)})'
 

@@ -5,35 +5,33 @@ import os
 from typing import Literal
 
 class TinyImageNet(Dataset):
+    '''
+    Tiny ImageNet dataset
+    '''
+    _N_TINYIMAGENET_CLASSES = 200
     _N_TRAIN_IMAGES_PER_CLASS = 500
     _N_TEST_IMAGES = 10000
 
-    def __init__(self, data_dir, transform=None, subset: Literal['train', 'val', 'test']='train', training_classes: list[str]=None):
+    def __init__(self, data_dir, transform=None, data_subset: Literal['train', 'val', 'test']='train', classes_subset: list[str] = None):
         self._data_dir = data_dir       # root directory (tiny-imagenet-200)
         self._transform = transform
-        self._subset = subset           # training, validation or test set
-        self._classes = self._load_classes()
-        if subset != 'test':
-            self._training_classes = [c for c in set(training_classes) if c in self._classes] if training_classes else self._classes # to avoid error on input or duplicates
-            if not self._training_classes:
-                self._training_classes = self._classes
-            self._training_labels = [self._classes.index(c) for c in self._training_classes] if training_classes else [i for i in range(len(self._classes))]
-        self._classes_descriptions = self._load_descriptions()
-        if subset == 'val':
-            val_labels = self._load_val_labels()
-            self._val_indexes_labels = [(i, l) for i, l in enumerate(val_labels) if l in self._training_labels] # list[(img_index, label)]
+        self._data_subset = data_subset   # training, validation or test set
+        self._class_ids = self._load_class_ids(classes_subset=classes_subset)
+        if self._data_subset == 'val':
+            self._val_img_indexes_labels = self._load_val_img_indexes_labels(classes_subset=classes_subset)
+        self._class_ids_descriptions = self._load_descriptions(classes_subset=classes_subset)
         
     def __len__(self):
-        match self._subset:
+        match self._data_subset:
             case 'train':
-                return len(self._training_classes) * self._N_TRAIN_IMAGES_PER_CLASS
+                return len(self._class_ids) * self._N_TRAIN_IMAGES_PER_CLASS
             case 'val':
-                return len(self._val_indexes_labels)
+                return len(self._val_img_indexes_labels)
             case 'test':
                 return self._N_TEST_IMAGES
     
     def __getitem__(self, idx):
-        match self._subset:
+        match self._data_subset:
             case 'train':
                 class_idx = idx // self._N_TRAIN_IMAGES_PER_CLASS
                 class_offset = idx % self._N_TRAIN_IMAGES_PER_CLASS
@@ -41,72 +39,86 @@ class TinyImageNet(Dataset):
                     os.path.join(
                         self._data_dir,
                         'train',
-                        self._training_classes[class_idx],
+                        self._class_ids[class_idx],
                         'images',
-                        f'{self._training_classes[class_idx]}_{class_offset}.JPEG'
+                        f'{self._class_ids[class_idx]}_{class_offset}.JPEG'
                     )
                 ).convert('RGB')
                 if self._transform:
                     image = self._transform(image)
-                return image, self._training_labels[class_idx]
+                return image, class_idx
             case 'val':
-                i, l = self._val_indexes_labels[idx]
-                image = Image.open(os.path.join(self._data_dir, 'val', 'images', f'val_{i}.JPEG')).convert('RGB')
+                img_idx, label = self._val_img_indexes_labels[idx]
+                image = Image.open(os.path.join(self._data_dir, 'val', 'images', f'val_{img_idx}.JPEG')).convert('RGB')
                 if self._transform:
                     image = self._transform(image)
-                return image, l
+                return image, label
             case 'test':
                 image = Image.open(os.path.join(self._data_dir, 'test', 'images', f'test_{idx}.JPEG')).convert('RGB')
                 if self._transform:
                     image = self._transform(image)
                 return image
 
-    # It returns True if a subset of training class is used, False otherwise (None if this dataset is not for training)
-    def training_with_subset(self) -> bool | None:
-        return not (self._classes is self._training_classes) if self._subset == 'train' else None
+    def classes_subset_enabled(self) -> bool:
+        '''
+        Returns True if a classes subset is used, False otherwise
+        '''
+        return len(self._class_ids) < self._N_TINYIMAGENET_CLASSES
 
-    # It returns the list of couples (training class, training label) if this is a training set, None otherwise
-    def training_classes_indexes(self) -> list[tuple[str, int]] | None:
-        return zip(self._training_classes, self._training_labels) if self._subset == 'train' else None
-
-    # It returns the number of classes of Tiny ImageNet Dataset (storing this information is a skill of this class)
-    def num_classes(self) -> int:
-        return len(self._classes)
+    def n_classes(self) -> int:
+        '''
+        Returns the number of classes used in training and validation stages
+        '''
+        return len(self._class_ids)
     
-    # It returns a copy of the train labels list
-    def train_labels(self) -> int:
-        return self._training_labels.copy()
-    
-    # It returns the description of the received class (class ID)
     def class_description(self, class_id: str) -> str:
-        return self._classes_descriptions[class_id]
+        '''
+        Returns the description of the received class id
+        '''
+        return self._class_ids_descriptions[class_id]
 
-    # It returns the description of the received label
     def label_description(self, label: int) -> str:
-        return self.class_description(self._classes[label])
+        '''
+        Returns the description of the received label
+        '''
+        return self.class_description(self._class_ids[label])
 
-    # It returns the classes/descriptions dict (it contains more classes, but to avoid temporal complexity it's ok)
-    def _load_descriptions(self) -> dict[str, str]:
+    def _load_descriptions(self, classes_subset: list[str] | None) -> dict[str, str]:
+        '''
+        Returns a dict where keys are the class ids and value are related descriptions
+        '''
         classes_descriptions = {}
         with open(os.path.join(self._data_dir, 'words.txt'), 'r') as f:
             for line in f:
-                splitted = line[:-1].split()
-                classes_descriptions[splitted[0]] = ' '.join(splitted[1:]).split(',')[0]
+                [class_id, *description] = line[:-1].split()
+                if (not classes_subset) or (classes_subset and class_id in classes_subset): # if not classes_subset, I decide to load all classes description to avoid control computational cost
+                    classes_descriptions[class_id] = ' '.join(description).split(',')[0] # only the first description
+                    if classes_subset and len(classes_descriptions) == len(classes_subset):
+                        break
         return classes_descriptions
 
-    # It reads wnids.txt file and returns a list with all class-codes
-    def _load_classes(self) -> list[str]:
-        classes = []
+    def _load_class_ids(self, classes_subset: list[str] | None) -> list[str]:
+        '''
+        Reads wnids.txt file and returns a list with class-codes which are also in received classes_subset if it is truthy,
+        all class ids otherwise
+        '''
+        class_ids = []
         with open(os.path.join(self._data_dir, 'wnids.txt'), 'r') as f:
             for line in f:
-                classes.append(line[:-1])
-        return classes
-    
-    # It reads val_annotations.txt and returns a list of indexes which correspond to validation labels
-    def _load_val_labels(self) -> list[int]:
-        labels = []
+                class_id = line[:-1]
+                if (not classes_subset) or (classes_subset and class_id in classes_subset):
+                    class_ids.append(line[:-1])
+        return class_ids
+
+    def _load_val_img_indexes_labels(self, classes_subset: list[str] | None) -> list[int]:
+        '''
+        Reads val_annotations.txt and returns a list of couples (image_index, label) for only class ids in classes_subset if it is truthy,
+        for all class ids otherwise
+        '''
+        indexes_labels = []
         with open(os.path.join(self._data_dir, 'val', 'val_annotations.txt'), 'r') as f:
-            for line in f:
-                class_code = line.split()[1] # the second column
-                labels.append(self._classes.index(class_code))
-        return labels
+            for img_idx, line in enumerate(f):
+                class_id = line.split()[1] # the second column
+                if (not classes_subset) or (classes_subset and class_id in classes_subset):
+                    indexes_labels.append((img_idx, self._class_ids.index(class_id)))
+        return indexes_labels

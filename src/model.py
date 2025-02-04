@@ -3,7 +3,10 @@ import torch.nn as nn
 import torchvision.models as models
 
 class Net(nn.Module):
-    def __init__(self, args, num_classes):
+    '''
+    Deep neural network with architecture like a ResNet
+    '''
+    def __init__(self, args, n_classes):
         super().__init__()
 
         # Depth choice
@@ -34,27 +37,33 @@ class Net(nn.Module):
             self._remove_norm_layers(self._resnet)
         
         # Change the last layer and add Softmax according to the task (200 disjoint classes)
-        self._resnet.fc.out_features = num_classes
+        self._resnet.fc.out_features = n_classes
         self._resnet.add_module('Softmax', nn.Softmax(self._resnet.fc.out_features))
 
         # Freezing specified modules
         if args.freeze:
             self._freeze_specified_modules(args.freeze)
 
-    # Inference
     def forward(self, x):
+        '''
+        Inference
+        '''
         return self._resnet(x)
     
-    # It replaces BatchNorm2d modules with the Identity ones
     def _remove_norm_layers(self, module):
+        '''
+        Replaces BatchNorm2d modules with the Identity ones
+        '''
         for name, child in module.named_children():
             if isinstance(child, nn.BatchNorm2d):
                 setattr(module, name, nn.Identity())
             else:
                 self._remove_norm_layers(child)
 
-    # It freezes all parameters which names contains at least one of the received names
     def _freeze_specified_modules(self, module_names):
+        '''
+        Freezes all parameters which names contains at least one of the received names
+        '''
         for name, param in self._resnet.named_parameters():
             if any(arg_name in name for arg_name in module_names):
                 param.requires_grad = False
