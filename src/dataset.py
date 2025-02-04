@@ -2,7 +2,7 @@
 from torch.utils.data import Dataset
 from PIL import Image
 import os
-from typing import Literal
+from typing import Literal, Iterable
 
 class TinyImageNet(Dataset):
     '''
@@ -46,13 +46,13 @@ class TinyImageNet(Dataset):
                 ).convert('RGB')
                 if self._transform:
                     image = self._transform(image)
-                return image, class_idx
+                return image, (class_idx if self.n_classes() > 1 else 1.0) # float in else statement for BCEWithLogitLoss
             case 'val':
                 img_idx, label = self._val_img_indexes_labels[idx]
                 image = Image.open(os.path.join(self._data_dir, 'val', 'images', f'val_{img_idx}.JPEG')).convert('RGB')
                 if self._transform:
                     image = self._transform(image)
-                return image, label
+                return image, (label if self.n_classes() > 1 else float(label)) # float(1) in else statement for BCEWithLogitLoss
             case 'test':
                 image = Image.open(os.path.join(self._data_dir, 'test', 'images', f'test_{idx}.JPEG')).convert('RGB')
                 if self._transform:
@@ -71,6 +71,12 @@ class TinyImageNet(Dataset):
         '''
         return len(self._class_ids)
     
+    def range_labels(self) -> Iterable[int]:
+        '''
+        Returns an iterable object on all existing labels
+        '''
+        return range(self.n_classes()) if self.n_classes() > 1 else range(1, 2)
+    
     def class_description(self, class_id: str) -> str:
         '''
         Returns the description of the received class id
@@ -81,7 +87,7 @@ class TinyImageNet(Dataset):
         '''
         Returns the description of the received label
         '''
-        return self.class_description(self._class_ids[label])
+        return self.class_description(self._class_ids[label + (0 if self.n_classes() > 1 else -1)])
 
     def _load_descriptions(self, classes_subset: list[str] | None) -> dict[str, str]:
         '''
@@ -120,5 +126,5 @@ class TinyImageNet(Dataset):
             for img_idx, line in enumerate(f):
                 class_id = line.split()[1] # the second column
                 if (not classes_subset) or (classes_subset and class_id in classes_subset):
-                    indexes_labels.append((img_idx, self._class_ids.index(class_id)))
+                    indexes_labels.append((img_idx, self._class_ids.index(class_id) if self.n_classes() > 1 else 1))
         return indexes_labels

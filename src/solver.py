@@ -8,12 +8,14 @@ from typing import Literal
 from model import Net
 
 class Solver(object):
-    '''Solver for training and validation stages'''
-
+    '''
+    Solver for training and validation stages
+    '''
     def __init__(self, train_loader, val_loader, device, writer, args):
         self.args = args
         self.model_name = 'model_{}.pth'.format(self.args.model_name)
         self.n_classes = train_loader.dataset.n_classes()
+        self.range_labels = train_loader.dataset.range_labels()
 
         # Define the model
         self.net = Net(self.args, self.n_classes).to(device)
@@ -23,7 +25,7 @@ class Solver(object):
             self.load_model()
         
         # Define Loss function
-        self.criterion = nn.CrossEntropyLoss()
+        self.criterion = nn.CrossEntropyLoss() if self.n_classes > 1 else nn.BCEWithLogitsLoss()
         
         # Choose optimizer
         if self.args.opt == 'SGD':
@@ -91,7 +93,7 @@ class Solver(object):
         '''
         Saves on tensorboard the class accuracy histogram for the last saved mode
         '''
-        for label in range(self.n_classes):
+        for label in self.range_labels:
             self.writer.add_histogram(
                 f'Model class accuracy (absolute iter {self.iter_model_save})',
                 self.val_accuracy_c_model_save[label].item(),
@@ -117,7 +119,7 @@ class Solver(object):
             f'| **Norm layers** | {'🟢 yes' if self.args.use_norm else '🔴 no'} |\n'
             f'| **Early stopping** | {f'🟢 yes (after {self.args.early_stopping} non-improvements on validation)' if self.early_stopping_enable else '🔴 no'} |\n'
             f'| **Classes** |' +
-                f'{', '.join(f'{self.train_loader.dataset.label_description(label)} ({label})' for label in range(self.n_classes)) if self.train_loader.dataset.classes_subset_enabled() else 'all'} |'
+                f'{', '.join(f'{self.train_loader.dataset.label_description(label)} ({label})' for label in self.range_labels) if self.train_loader.dataset.classes_subset_enabled() else 'all'} |'
         )
         self.writer.add_text('Model Info', table)
     
@@ -135,15 +137,20 @@ class Solver(object):
             for i, data in enumerate(self.train_loader, 0):
                 # Get the inputs; data is a list of [inputs, labels]
                 inputs, labels = data
+                #print(inputs)
+                #print(labels)
                 
                 # Put data on correct device
                 inputs, labels = inputs.to(self.device), labels.to(self.device)
-                
+
                 # Zero the parameter gradients
                 self.optimizer.zero_grad()
 
                 # Forward + Backward + Optimize
                 outputs = self.net(inputs)
+                if self.n_classes == 1:
+                    outputs = outputs.view(-1) # flatten (from size(1, n) to size(n))
+                #print(outputs)
                 loss = self.criterion(outputs, labels)
                 loss.backward()
                 self.optimizer.step()
@@ -176,7 +183,7 @@ class Solver(object):
                 break
         
         # Save class accuracy of the saved model
-        if self.args.class_accuracy:
+        if self.args.class_accuracy and self.n_classes > 1:
             self.save_class_accuracy_histogram()
 
         self.writer.flush()
@@ -198,7 +205,7 @@ class Solver(object):
         loader = self.val_loader if subset == 'val' else self.train_loader
 
         # Global accuracy and, eventually, the accuracy for each class
-        if self.args.class_accuracy:
+        if self.args.class_accuracy and self.n_classes > 1:
             correct_c = torch.zeros(self.n_classes).to(self.device)
             total_c = torch.zeros(self.n_classes).to(self.device)
         else:
@@ -215,12 +222,17 @@ class Solver(object):
 
                 # calculate outputs by running images through the network
                 outputs = self.net(inputs)
+                if self.n_classes == 1:
+                    outputs = outputs.view(-1) # flatten (from size(1, n) to size(n))
 
-                # the class with the highest energy is what we choose as prediction
-                _, predicted = torch.max(outputs.data, 1)
+                # prediction
+                if self.n_classes > 1:
+                    _, predicted = torch.max(outputs.data, 1) # the class with the highest energy is what we choose as prediction
+                else:
+                    predicted = (outputs.sigmoid() > 0.5).int() # if sigmoid(output) > 0.5 we predict positive
 
                 # correct predictions counting
-                if self.args.class_accuracy:
+                if self.args.class_accuracy and self.n_classes > 1:
                     correct_mask = predicted == labels
                     total_c += torch.bincount(labels, minlength=self.n_classes) # count how many labels there are for each class
                     correct_c += torch.bincount(labels[correct_mask], minlength=self.n_classes) # count correct predictions for each class
@@ -229,11 +241,11 @@ class Solver(object):
                     correct += (predicted == labels).sum().item()
 
         # Compute accuracy
-        if self.args.class_accuracy:
+        if self.args.class_accuracy and self.n_classes > 1:
             # compute accuracy for each class
             accuracy_c = 100 * correct_c / total_c
 
-            for label in range(self.n_classes):
+            for label in self.range_labels:
                     # label description (for more readable stats)
                     label_desc = f'{label} ({loader.dataset.label_description(label)})'
 
@@ -269,7 +281,7 @@ class Solver(object):
                     self.non_imp = 0
 
                 # save validation accuracy for each class
-                if self.args.class_accuracy:
+                if self.args.class_accuracy and self.n_classes > 1:
                     self.val_accuracy_c_model_save = accuracy_c.to('cpu')
 
                 # after an improvement, let's save the model
