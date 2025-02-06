@@ -5,8 +5,9 @@ Mean and Std for Tiny ImageNet training subset
 
 import torch
 import torchvision.transforms as transforms
-from dataset import TinyImageNet
 import os
+
+from dataset import TinyImageNet
 
 BATCH_SIZE = 500
 WORKERS = 4

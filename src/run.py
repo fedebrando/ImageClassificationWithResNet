@@ -20,7 +20,7 @@ def get_args():
 
     parser.add_argument('--epochs', type=int, default=2, help='number of epochs')
     parser.add_argument('--batch_size', type=int, default=16, help='number of elements in a batch')
-    parser.add_argument('--workers', type=int, default=2, help='number of workers in data loader')
+    parser.add_argument('--workers', type=int, default=4, help='number of workers in data loader')
     parser.add_argument('--print_every', type=int, default=500, help='print losses and validate model every that number of iterations')
     parser.add_argument('--class_accuracy', action='store_true', help='print also accuracy for each class')
 
