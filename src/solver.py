@@ -121,7 +121,7 @@ class Solver(object):
             f'| **Classes** |' +
                 f'{', '.join(f'{self.train_loader.dataset.label_description(label)} ({label})' for label in self.range_labels) if self.train_loader.dataset.classes_subset_enabled() else 'all'} |'
         )
-        self.writer.add_text('Model Info/Settings', table)
+        self.writer.add_text('Settings', table)
 
     def store_saved_model_performance(self):
         '''
@@ -137,8 +137,15 @@ class Solver(object):
                 label_desc = self.train_loader.dataset.label_description(label)
                 acc_value = self.val_accuracy_c_model_save[label].item()
                 table += f'| Accuracy for class **{label} ({label_desc})** | {acc_value:.2f} |\n'
-        self.writer.add_text('Model Info/Validation performance', table)
+        self.writer.add_text('Validation performance of the saved model', table)
     
+    def store_early_stopping_log(self, epoch, i):
+        '''
+        Stores the early stopping log on tensorboard with epoch and iteration in which it happened
+        '''
+        es_log = f'🛑 Early stopping at epoch {epoch} and iter {i} (absolute iter {self.absolute_iter(epoch, i)})'
+        self.writer.add_text('Early stopping', es_log)
+
     def train(self):
         '''
         Trains the model on the training set
@@ -192,6 +199,7 @@ class Solver(object):
 
                     # early stopping condition to exit from iteration loop
                     if self.early_stopping():
+                        self.store_early_stopping_log(epoch, i) # early stopping log on tensorboard
                         break
 
             # Early stopping to exit from epoch loop
