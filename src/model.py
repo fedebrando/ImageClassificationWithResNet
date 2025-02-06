@@ -37,13 +37,7 @@ class Net(nn.Module):
             self._remove_norm_layers(self._resnet)
         
         # Change fully-connected layer
-        if n_classes > 1:
-            self._resnet.fc = nn.Sequential(
-                nn.Linear(self._resnet.fc.in_features, n_classes),
-                nn.Softmax(dim=1) # multi-class classification with disjoint classes
-            )
-        else:
-            self._resnet.fc = nn.Linear(self._resnet.fc.in_features, n_classes)
+        self._resnet.fc = nn.Linear(self._resnet.fc.in_features, n_classes)
 
         # Freezing specified modules
         if args.freeze:

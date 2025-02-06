@@ -157,11 +157,9 @@ class Solver(object):
         self.net.train()
         for epoch in range(self.epochs):  # loop over the dataset multiple times
             running_loss = 0.0
-            for i, data in enumerate(self.train_loader, 0):
+            for i, data in enumerate(self.train_loader):
                 # Get the inputs; data is a list of [inputs, labels]
                 inputs, labels = data
-                #print(inputs)
-                #print(labels)
                 
                 # Put data on correct device
                 inputs, labels = inputs.to(self.device), labels.to(self.device)
@@ -173,7 +171,6 @@ class Solver(object):
                 outputs = self.net(inputs)
                 if self.n_classes == 1:
                     outputs = outputs.view(-1) # flatten (from size(1, n) to size(n))
-                #print(outputs)
                 loss = self.criterion(outputs, labels)
                 loss.backward()
                 self.optimizer.step()

@@ -45,10 +45,11 @@ def get_args():
 def main(args):
     writer = SummaryWriter('../runs/' + 'run_{}'.format(args.run_name))
 
-    # Define transforms
+    # Define transforms                                                                 # these are computed by tinyimagenet_stats.py
+    mean, std = ((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)) if args.pretrained else ((0.4802, 0.4481, 0.3975), (0.2770, 0.2691, 0.2821))
     transform = transforms.Compose([
         transforms.ToTensor(),
-        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+        transforms.Normalize(mean=mean, std=std)
     ])
 
     # Load training set
