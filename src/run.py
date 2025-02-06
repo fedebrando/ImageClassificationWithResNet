@@ -61,7 +61,7 @@ def main(args):
 
     # Device (GPU preference)
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-    print('Device: ', device)
+    print('Device:', device)
 
     # Define solver class
     solver = Solver(

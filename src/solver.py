@@ -121,7 +121,23 @@ class Solver(object):
             f'| **Classes** |' +
                 f'{', '.join(f'{self.train_loader.dataset.label_description(label)} ({label})' for label in self.range_labels) if self.train_loader.dataset.classes_subset_enabled() else 'all'} |'
         )
-        self.writer.add_text('Model Info', table)
+        self.writer.add_text('Model Info/Settings', table)
+
+    def store_saved_model_performance(self):
+        '''
+        Stores saved model performance on tensorboard
+        '''
+        table = (
+            '| Metric | Value (%) |\n'
+            '|--------|-----------|\n'
+            f'| **Global accuracy** | {self.best_accuracy:.2f} |\n'
+        )
+        if self.args.class_accuracy and self.n_classes > 1:
+            for label in self.range_labels:
+                label_desc = self.train_loader.dataset.label_description(label)
+                acc_value = self.val_accuracy_c_model_save[label].item()
+                table += f'| Accuracy for class **{label} ({label_desc})** | {acc_value:.2f} |\n'
+        self.writer.add_text('Model Info/Validation performance', table)
     
     def train(self):
         '''
@@ -185,6 +201,9 @@ class Solver(object):
         # Save class accuracy of the saved model
         if self.args.class_accuracy and self.n_classes > 1:
             self.save_class_accuracy_histogram()
+        
+        # Save performance of the saved model
+        self.store_saved_model_performance()
 
         self.writer.flush()
         self.writer.close()
