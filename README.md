@@ -16,6 +16,7 @@ with several optional command-line parameters described next.
 |`--workers`|number of workers in data loader|`--workers=2`|
 |`--print_every`|print losses and validate model every that number of iterations|`--print_every=500`|
 |`--class_accuracy`|print also accuracy for each class|-|
+|`--resize_imgs`|resize input images according to ImageNet dataset (224x224)|-|
 |`--lr`|learning rate|`--lr=0.001`|
 |`--opt`|optimizer used for training|`--opt=SGD`|
 |`--use_norm`|use normalization layers in model|-|

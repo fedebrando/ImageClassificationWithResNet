@@ -111,6 +111,7 @@ class Solver(object):
             f'| **Model name** | {self.args.model_name} |\n'
             f'| **Model** | ResNet-{self.args.depth} |\n'
             f'| **Pretrained** | {'🟢 yes' if self.args.pretrained else '🔴 no'} |\n'
+            f'| **Image resizing** | {'🟢 yes' if self.args.resize_imgs else '🔴 no'} |\n'
             f'| **Freezed modules** | {', '.join(self.args.freeze) if self.args.freeze else '-'} |\n'
             f'| **Optimizer** | {self.args.opt} |\n'
             f'| **Epochs** | {self.args.epochs} |\n'

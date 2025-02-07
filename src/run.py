@@ -23,6 +23,7 @@ def get_args():
     parser.add_argument('--workers', type=int, default=4, help='number of workers in data loader')
     parser.add_argument('--print_every', type=int, default=500, help='print losses and validate model every that number of iterations')
     parser.add_argument('--class_accuracy', action='store_true', help='print also accuracy for each class')
+    parser.add_argument('--resize_imgs', action='store_true', help='resize input images according to ImageNet dataset (224x224)')
 
     parser.add_argument('--lr', type=float, default=0.001, help='learning rate')
     parser.add_argument('--opt', type=str, default='SGD', choices=['SGD', 'Adam'], help='optimizer used for training')
@@ -47,10 +48,13 @@ def main(args):
 
     # Define transforms                                                                 # these are computed by tinyimagenet_stats.py
     mean, std = ((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)) if args.pretrained else ((0.4802, 0.4481, 0.3975), (0.2770, 0.2691, 0.2821))
-    transform = transforms.Compose([
+    transform_lst = [
         transforms.ToTensor(),
         transforms.Normalize(mean=mean, std=std)
-    ])
+    ]
+    if args.resize_imgs:
+        transform_lst.insert(0, transforms.Resize(224)) # resize images from 64x64 to 224x224 (ImageNet standard scale)
+    transform = transforms.Compose(transform_lst)
 
     # Load training set
     trainset = TinyImageNet(data_dir=args.dataset_path, transform=transform, data_subset='train', classes_subset=args.classes_subset)
