@@ -3,6 +3,7 @@ from torch.utils.data import Dataset
 from PIL import Image
 import os
 from typing import Literal, Iterable
+from random import sample
 
 class TinyImageNet(Dataset):
     '''
@@ -108,13 +109,31 @@ class TinyImageNet(Dataset):
         Reads wnids.txt file and returns a list with class-codes which are also in received classes_subset if it is truthy,
         all class ids otherwise
         '''
+        # Check rand presence
+        n = 0
+        if classes_subset:
+            for c in classes_subset:
+                if c.startswith('rand') and (n_str := c[len('rand'):]).isnumeric():
+                    n = int(n_str) # get suffix (the number of classes)
+                    break
+
+        # Reading file wnids.txt
         class_ids = []
+        other_class_ids = []
         with open(os.path.join(self._data_dir, 'wnids.txt'), 'r') as f:
             for line in f:
                 class_id = line[:-1]
                 if (not classes_subset) or (classes_subset and class_id in classes_subset):
-                    class_ids.append(line[:-1])
-        return class_ids
+                    class_ids.append(class_id)
+                elif n > 0:
+                    other_class_ids.append(class_id)
+        
+        # Add (eventually) random classes to adjust classes_subset for next
+        random_classes = sample(other_class_ids, min(n, len(other_class_ids)))
+        if classes_subset:
+            classes_subset.extend(random_classes)
+
+        return class_ids + random_classes
 
     def _load_val_img_indexes_labels(self, classes_subset: list[str] | None) -> list[int]:
         '''

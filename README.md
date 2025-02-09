@@ -23,5 +23,5 @@ with several optional command-line parameters described next.
 |`--early_stopping`|use early stopping to prevent overfitting setting max non-improvements number on validation|`--early_stopping=10`|
 |`--dataset_path`|path were to save/get the dataset|`--dataset_path=../data/tiny-imagenet-200`|
 |`--checkpoint_path`|path were to save the trained model|`--checkpoint_path=../models`|
-|`--classes_subset`|train (and validate) model with a subset of classes|`--classes_subset n01443537 n01641577`|
+|`--classes_subset`|train (and validate) model with a subset of classes (you can also select a certain number of classes randomly)|`--classes_subset n01443537 n01641577 rand7`|
 |`--resume_train`|load the model from checkpoint before training|-|
