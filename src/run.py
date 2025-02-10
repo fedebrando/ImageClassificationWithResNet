@@ -4,6 +4,7 @@ import torchvision.transforms as transforms
 import argparse
 from torch.utils.tensorboard import SummaryWriter
 import os
+from random import sample
 
 from solver import Solver
 from dataset import TinyImageNet
@@ -43,6 +44,26 @@ def get_args():
 
     return parser.parse_args()
 
+def check_rand_classes_arg(classes_subset: list[str]):
+    '''
+    Modify received list adding (eventually) a specified number of random classes
+    '''
+    num_rand_classes = 0
+    if classes_subset:
+        for i, arg in enumerate(classes_subset):
+            if arg.startswith('rand') and (n_str := arg[len('rand'):]).isnumeric():
+                num_rand_classes = int(n_str)
+                classes_subset.pop(i)
+                break
+        if num_rand_classes > 0:
+            other_class_ids = []
+            with open(os.path.join('..', 'data', 'tiny-imagenet-200', 'wnids.txt'), 'r') as f:
+                for line in f:
+                    class_id = line[:-1] # remove '\n'
+                    if class_id not in classes_subset:
+                        other_class_ids.append(class_id)
+            classes_subset.extend(sample(other_class_ids, min(len(other_class_ids), num_rand_classes)))
+
 def main(args):
     writer = SummaryWriter('../runs/' + 'run_{}'.format(args.run_name))
 
@@ -55,6 +76,9 @@ def main(args):
     if args.resize_imgs:
         transform_lst.insert(0, transforms.Resize(224)) # resize images from 64x64 to 224x224 (ImageNet standard scale)
     transform = transforms.Compose(transform_lst)
+
+    # Check and manage 'rand' presence in classes_subset
+    check_rand_classes_arg(args.classes_subset)
 
     # Load training set
     trainset = TinyImageNet(data_dir=args.dataset_path, transform=transform, data_subset='train', classes_subset=args.classes_subset)
