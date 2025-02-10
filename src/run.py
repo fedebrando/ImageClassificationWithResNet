@@ -9,6 +9,13 @@ from random import sample
 from solver import Solver
 from dataset import TinyImageNet
 
+DATA_AUGMENTATION = [
+    transforms.RandomHorizontalFlip(p=0.5)
+    #transforms.RandomResizedCrop(224, scale=(0.8, 1.0)),
+    #transforms.RandomRotation(15),
+    #transforms.RandomErasing(p=0.2, scale=(0.02, 0.2))
+]
+
 def get_args():
     parser = argparse.ArgumentParser()
 
@@ -25,6 +32,7 @@ def get_args():
     parser.add_argument('--print_every', type=int, default=500, help='print losses and validate model every that number of iterations')
     parser.add_argument('--class_accuracy', action='store_true', help='print also accuracy for each class')
     parser.add_argument('--resize_imgs', action='store_true', help='resize input images according to ImageNet dataset (224x224)')
+    parser.add_argument('--data_augmentation', action='store_true', help='add data augmentation')
 
     parser.add_argument('--lr', type=float, default=0.001, help='learning rate')
     parser.add_argument('--opt', type=str, default='SGD', choices=['SGD', 'Adam'], help='optimizer used for training')
@@ -69,19 +77,25 @@ def main(args):
 
     # Define transforms                                                                 # these are computed by tinyimagenet_stats.py
     mean, std = ((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)) if args.pretrained else ((0.4802, 0.4481, 0.3975), (0.2770, 0.2691, 0.2821))
-    transform_lst = [
+    transform_lst = [   # general transformation for each data subset
         transforms.ToTensor(),
         transforms.Normalize(mean=mean, std=std)
     ]
     if args.resize_imgs:
         transform_lst.insert(0, transforms.Resize(224)) # resize images from 64x64 to 224x224 (ImageNet standard scale)
+    train_transform_lst = transform_lst.copy() # specific transformations for training (if there is data augmentation)
     transform = transforms.Compose(transform_lst)
 
+    # Data augmentation
+    if args.data_augmentation:
+        train_transform_lst = DATA_AUGMENTATION + train_transform_lst
+    train_transform = transforms.Compose(train_transform_lst)
+    
     # Check and manage 'rand' presence in classes_subset
     check_rand_classes_arg(args.classes_subset)
 
     # Load training set
-    trainset = TinyImageNet(data_dir=args.dataset_path, transform=transform, data_subset='train', classes_subset=args.classes_subset)
+    trainset = TinyImageNet(data_dir=args.dataset_path, transform=train_transform, data_subset='train', classes_subset=args.classes_subset)
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=args.batch_size, shuffle=True, num_workers=args.workers)
 
     # Load validation set
@@ -98,7 +112,8 @@ def main(args):
         val_loader=valloader,
         device=device,
         writer=writer,
-        args=args
+        args=args,
+        data_augm_description=str(DATA_AUGMENTATION)
     )
 
     # TRAIN model

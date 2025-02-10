@@ -11,11 +11,13 @@ class Solver(object):
     '''
     Solver for training and validation stages
     '''
-    def __init__(self, train_loader, val_loader, device, writer, args):
+    def __init__(self, train_loader, val_loader, device, writer, args, data_augm_description: str):
         self.args = args
         self.model_name = 'model_{}.pth'.format(self.args.model_name)
         self.n_classes = train_loader.dataset.n_classes()
         self.range_labels = train_loader.dataset.range_labels()
+
+        self._data_augm_desc = data_augm_description # only for tensorboard storing
 
         # Define the model
         self.net = Net(self.args, self.n_classes).to(device)
@@ -112,6 +114,7 @@ class Solver(object):
             f'| **Model** | ResNet-{self.args.depth} |\n'
             f'| **Pretrained** | {'🟢 yes' if self.args.pretrained else '🔴 no'} |\n'
             f'| **Image resizing** | {'🟢 yes' if self.args.resize_imgs else '🔴 no'} |\n'
+            f'| **Data augmentation** | {f'🟢 yes ({self._data_augm_desc})' if self.args.data_augmentation else '🔴 no'} |\n'
             f'| **Freezed modules** | {', '.join(self.args.freeze) if self.args.freeze else '-'} |\n'
             f'| **Optimizer** | {self.args.opt} |\n'
             f'| **Epochs** | {self.args.epochs} |\n'
