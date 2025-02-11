@@ -31,9 +31,9 @@ class Solver(object):
         
         # Choose optimizer
         if self.args.opt == 'SGD':
-            self.optimizer = optim.SGD(self.net.parameters(), lr=self.args.lr, momentum=0.9)
+            self.optimizer = optim.SGD(self.net.parameters(), lr=self.args.lr, momentum=0.9, weight_decay=self.args.weight_decay)
         elif self.args.opt == 'Adam':
-            self.optimizer = optim.Adam(self.net.parameters(), lr=self.args.lr)
+            self.optimizer = optim.Adam(self.net.parameters(), lr=self.args.lr, weight_decay=self.args.weight_decay)
 
         # Epochs
         self.epochs = self.args.epochs
@@ -117,6 +117,7 @@ class Solver(object):
             f'| **Data augmentation** | {f'🟢 yes ({self._data_augm_desc})' if self.args.data_augmentation else '🔴 no'} |\n'
             f'| **Freezed modules** | {', '.join(self.args.freeze) if self.args.freeze else '-'} |\n'
             f'| **Optimizer** | {self.args.opt} |\n'
+            f'| **Weight decay** | {f'🟢 yes ({self.args.weight_decay})' if self.args.weight_decay else '🔴 no'} |\n'
             f'| **Epochs** | {self.args.epochs} |\n'
             f'| **Batch Size** | {self.args.batch_size} |\n'
             f'| **Learning Rate** | {self.args.lr} |\n'

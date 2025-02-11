@@ -10,10 +10,10 @@ from solver import Solver
 from dataset import TinyImageNet
 
 DATA_AUGMENTATION = [
-    transforms.RandomHorizontalFlip(p=0.5)
-    #transforms.RandomResizedCrop(224, scale=(0.8, 1.0)),
-    #transforms.RandomRotation(15),
-    #transforms.RandomErasing(p=0.2, scale=(0.02, 0.2))
+    transforms.RandomHorizontalFlip(p=0.5),
+    transforms.RandomResizedCrop(224, scale=(0.8, 1.0))
+    #transforms.RandomRotation(15) NO
+    #transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1) NO
 ]
 
 def get_args():
@@ -36,6 +36,7 @@ def get_args():
 
     parser.add_argument('--lr', type=float, default=0.001, help='learning rate')
     parser.add_argument('--opt', type=str, default='SGD', choices=['SGD', 'Adam'], help='optimizer used for training')
+    parser.add_argument('--weight_decay', type=float, default=0.0, help='L2 regularization with specified coefficient')
     parser.add_argument('--use_norm', action='store_true', help='use normalization layers in model')
     parser.add_argument(
         '--early_stopping',

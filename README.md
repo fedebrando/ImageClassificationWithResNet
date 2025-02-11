@@ -19,6 +19,7 @@ with several optional command-line parameters described next.
 |`--resize_imgs`|resize input images according to ImageNet dataset (224x224)|-|
 |`--lr`|learning rate|`--lr=0.001`|
 |`--opt`|optimizer used for training|`--opt=SGD`|
+|`--weight_decay`|optimizer used for training|`--weight_decay=0.0001`|
 |`--use_norm`|use normalization layers in model|-|
 |`--early_stopping`|use early stopping to prevent overfitting setting max non-improvements number on validation|`--early_stopping=10`|
 |`--dataset_path`|path were to save/get the dataset|`--dataset_path=../data/tiny-imagenet-200`|
