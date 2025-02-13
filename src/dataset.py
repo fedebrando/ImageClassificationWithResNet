@@ -89,6 +89,12 @@ class TinyImageNet(Dataset):
         Returns the description of the received label
         '''
         return self.class_description(self._class_ids[label + (0 if self.n_classes() > 1 else -1)])
+    
+    def class_to_label(self, class_id: str) -> int:
+        '''
+        Returns the label related to received class id
+        '''
+        return self._class_ids.index(class_id)
 
     def _load_descriptions(self, classes_subset: list[str] | None) -> dict[str, str]:
         '''
