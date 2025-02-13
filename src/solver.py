@@ -82,7 +82,7 @@ class Solver(object):
         Loads the model
         '''
         check_path = os.path.join(self.args.checkpoint_path, self.model_name)
-        self.net.load_state_dict(torch.load(check_path))
+        self.net.load_state_dict(torch.load(check_path, weights_only=True))
         print('Model loaded!')
 
     def early_stopping(self) -> bool:
