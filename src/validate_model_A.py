@@ -8,6 +8,7 @@ from dataset import TinyImageNet
 from model import Net
 
 def main():
+    # Device selection (GPU preference)
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
     # Transforms according to non-pretrained model (ResNet-18)
