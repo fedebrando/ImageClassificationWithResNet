@@ -1,4 +1,8 @@
 
+'''
+Only for step A - Validation with all validation set
+'''
+
 import os
 import torchvision.transforms as transforms
 import torch
